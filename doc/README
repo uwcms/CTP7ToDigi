@@ -1,0 +1,28 @@
+CTP7ToDigi is a EDProducer which 
+  (1) uses CTP7Client to get spy data from its buffers 
+  (2) uses RCTInfo to decode the raw uint32_t words
+  (3) builds L1CaloRegions and L1CaloEmCands
+  (4) puts those two collestions in to the event
+
+This is a kludge to build -- I copied the relevant classes to the
+CMSSW area as I can't compile and link using the online SVN repo.
+If any of those change online, we should change them here too.
+
+The configuration script for cmsRun is:
+
+test/CTP7ToDigi_cfg.py 
+
+This python script reads 170 events from the CTP7Client, the maximum
+that can be accommodated in the BRAMs.  It saves the data in the
+CMSSW formatted file.  It is the users job to ensure that there
+is legitimate data in the CTP7 memory before using this program.
+
+To run:
+
+cmsRun CTP7ToDigi_cfg.py
+
+In order to succeed, you should have a CTP7Server accessible on the
+TCP/IP network.  
+
+To try things out, you can use CTP7Play/ctp7Server on a linux box to 
+emulate a real CTP7.
