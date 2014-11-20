@@ -13,6 +13,7 @@
 #define RegBufSize NRegisters *sizeof(int)
 #define NILinks 36
 #define NOLinks 3
+#define statusRegisterSize 21
 //#define NILinks 67
 //#define NOLinks 48
 
@@ -70,6 +71,14 @@ public:
   virtual bool setRandomPattern(BufferType bufferType,
 				unsigned int linkNumber, 
 				unsigned int randomSeed) = 0;
+
+  virtual bool capture() = 0;
+  virtual bool softReset() = 0;
+  //virtual bool counterReset() = 0;
+  virtual bool checkConnection() = 0;
+  virtual bool hardReset() = 0;
+
+  //virtual bool decoderLocked() = 0;
 
 };
 

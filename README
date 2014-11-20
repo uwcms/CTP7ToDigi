@@ -1,0 +1,4 @@
+To checkout the latest CTP7Client from SVN please do:
+
+kinit USER@CERN.CH
+bash checkoutoutCTP7Client.sh

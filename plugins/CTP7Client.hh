@@ -17,9 +17,13 @@ public:
   unsigned int getAddress(BufferType bufferType, 
 			  unsigned int linkNumber,
 			  unsigned int addressOffset);
+
   unsigned int getAddress(unsigned int addressOffset) {
     return getAddress(registerBuffer, 0, addressOffset);
   }
+
+  unsigned int getLinkID(unsigned int linkNumber);
+
   unsigned int getRegister(unsigned int addressOffset) {
     return getAddress(addressOffset);
   }
@@ -34,10 +38,12 @@ public:
 		  unsigned int linkNumber,
 		  unsigned int addressOffset, 
 		  unsigned int value);
+
   bool setAddress(unsigned int addressOffset, 
 		  unsigned int value) {
     return setAddress(registerBuffer, 0, addressOffset, value);
   }
+
   bool setRegister(unsigned int addressOffset, unsigned int value) {
     return setAddress(registerBuffer, 0, addressOffset, value);
   }
@@ -50,6 +56,7 @@ public:
   bool setConstantPattern(BufferType bufferType,
 			  unsigned int linkNumber, 
 			  unsigned int value);
+
   bool setIncreasingPattern(BufferType bufferType,
 			    unsigned int linkNumber, 
 			    unsigned int startValue = 0, 
@@ -65,6 +72,20 @@ public:
   ssize_t getResult(void* iData, void* oData, 
 		    ssize_t iSize, ssize_t oSize,
 		    bool wait = false);
+
+  bool dumpStatus(std::vector<unsigned int> &addressValues );
+  bool dumpDecoderErrors(std::vector<unsigned int> &addressValues);
+  bool dumpCRCErrors(std::vector<unsigned int> &addressValues);
+  bool dumpAllLinkIDs(std::vector<unsigned int> &addressValues);
+
+  //bool getStatusRegisters();
+  //bool counterReset();
+  bool softReset();
+  bool capture();
+  //bool decoderLocked();
+  bool checkConnection();
+  bool hardReset();
+  bool setAddressNames(std::vector<std::string> & addressNames, unsigned int & version);
 
 private:
 
@@ -84,6 +105,13 @@ private:
   struct addrinfo *host_info_list; // Pointer to the to the linked list of host_info's.
   int socketfd; // Socket file descriptor
 
+  //print error message
+  void printConnectionError(){
+    std::cout<<"Error! MSG Received is NULL"<<std::endl;
+    std::cout<<"There is most likely something wrong with your connection"<<std::endl;
+    std::cout<<"Please check the server is running and the IP/Port is correct"<<std::endl;
+  }
+  
   bool verbose;
 
   char msg[MSGLEN];

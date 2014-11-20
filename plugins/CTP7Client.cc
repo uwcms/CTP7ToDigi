@@ -176,19 +176,44 @@ unsigned int CTP7Client::getAddress(BufferType bufferType,
 
   //msg is defined with len 64, this needs to be longer
   sprintf(msg, "getAddress(%x,%x,%x)", bufferType, linkNumber, addressOffset);
+  ssize_t bytes_received = getResult();
 
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
+
+  msg[bytes_received] = '\0';
+
+  unsigned int value;
+  if(sscanf(msg, "%x", &value) != 1) {
+    std::cerr << msg << std::endl;
+    return NULL;
+  }
+
+  return value;
+
+}
+
+unsigned int CTP7Client::getLinkID(unsigned int linkNumber){
+
+  CTP7::BufferType type = CTP7::registerBuffer;
+  sprintf(msg, "getLinkID(%x,%x,%x)", type, 0, linkNumber);
   ssize_t bytes_received = getResult();
   msg[bytes_received] = '\0';
 
   unsigned int value;
 
-  if(sscanf(msg, "%x", &value) != 1) {
-    std::cerr << msg << std::endl;
-    return 0xDEADBEEF;
+  if(msg == NULL){
+    printConnectionError();
+    return false;
   }
 
+  if(sscanf(msg, "%x", &value) != 1) {
+    std::cerr << msg << std::endl;
+    return NULL;
+  }
   return value;
-
 }
 
 bool CTP7Client::setAddress(BufferType bufferType, 
@@ -199,42 +224,221 @@ bool CTP7Client::setAddress(BufferType bufferType,
   if(!checkArgs(bufferType, linkNumber, addressOffset)) return false;
 
   sprintf(msg, "setAddress(%x,%x,%x,%x)", bufferType, linkNumber, addressOffset, value);
-
   ssize_t bytes_received = getResult();
-
   msg[bytes_received] = '\0';
 
   if(msg == NULL){
-    std::cout<<"Error! MSG Received is NULL"<<std::endl;
+    printConnectionError();
     return false;
   }
 
   return true;
 }
 
-/*
- * Set pattern read in from File and transfered by buffer
- *
- */
+//TODO:not a great implementation for statusRegisterSize,
+bool CTP7Client::dumpStatus(std::vector<unsigned int> &addressValues){
 
-/*
-bool CTP7Client::setFilePattern(BufferType bufferType,
-				unsigned int linkNumber,
-				unsigned int numberOfValues,
-				unsigned int *buffer)
+  unsigned int buffer[30]={0};
+  sprintf(msg, "dumpStatus");
+  ssize_t bytes_received = getResult(msg, buffer, MSGLEN, statusRegisterSize*4, true);
+  msg[bytes_received] = '\0';
+
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
+    
+  if((unsigned int) bytes_received != (statusRegisterSize*4)){
+    std::cout<<"Wrong number of bytes received, bytes_received: "<< bytes_received << " statusRegisterSize*4: " << statusRegisterSize*4 <<std::endl;
+    //return false;
+  }
+
+  for(unsigned int i = 0 ; i < statusRegisterSize+1 ; i++ ){
+    addressValues.push_back(buffer[i]);
+  }
+  
+  return true;
+}
+
+bool CTP7Client::dumpCRCErrors(std::vector<unsigned int> &addressValues){
+
+  unsigned int buffer[40]={0};
+  sprintf(msg, "dumpCRCErrors");
+
+  ssize_t bytes_received = getResult(msg, buffer, MSGLEN, (NILinks+1)*4, false);
+
+  msg[bytes_received] = '\0';
+
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
+    
+  if((unsigned int) bytes_received != ((NILinks+1)*4)){
+    std::cout<<"Wrong number of bytes received"<<std::endl;
+    //return false;
+  }
+
+  for(unsigned int i = 0 ; i < NILinks ; i++ ){
+    addressValues.push_back(buffer[i]);
+  }
+  
+  return true;
+}
+
+bool CTP7Client::dumpAllLinkIDs(std::vector<unsigned int> &addressValues){
+
+  unsigned int buffer[NILinks]={0};
+  sprintf(msg, "dumpAllLinkIDs");
+
+  ssize_t bytes_received = getResult(msg, buffer, MSGLEN, (NILinks)*4, false);
+
+  msg[bytes_received] = '\0';
+
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
+    
+  if((unsigned int) bytes_received != ((NILinks)*4)){
+    std::cout<<"Wrong number of bytes received"<<std::endl;
+    //return false;
+  }
+
+  for(unsigned int i = 0 ; i < NILinks; i++ ){
+    addressValues.push_back(buffer[i]);
+  }
+  
+  return true;
+}
+
+bool CTP7Client::dumpDecoderErrors(std::vector<unsigned int> &addressValues){
+
+  unsigned int buffer[40]={0};
+  sprintf(msg, "dumpDecoderErrors");
+  ssize_t bytes_received = getResult(msg, buffer, MSGLEN, (NILinks+1)*4, false);
+  msg[bytes_received] = '\0';
+
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
+    
+  if((unsigned int) bytes_received != ((NILinks+1)*4)){
+    std::cout<<"Wrong number of bytes received"<<std::endl;
+    //return false;
+  }
+  for(unsigned int i = 0 ; i < NILinks+1 ; i++ ){
+    addressValues.push_back(buffer[i]);
+  }
+  
+  return true;
+}
+
+//address ordering should only be changed at the same time they change on the server
+bool CTP7Client::setAddressNames(std::vector<std::string> & addressNames, unsigned int &version)
 {
-  if(!checkArgs(bufferType, linkNumber)){
-    std::cout<<"Failed Check Args Step "<<std::endl;
+    version = 0xc0000001;
+    addressNames.push_back( "QPLL_RESET"          );
+    addressNames.push_back( "QPLL_LOCK"	          );
+    addressNames.push_back( "DECODER_LOCKED_CXP0" );
+    addressNames.push_back( "DECODER_LOCKED_CXP1" );
+    addressNames.push_back( "DECODER_LOCKED_CXP2" );
+    addressNames.push_back( "CAPTURE_DONE_CXP0"   );
+    addressNames.push_back( "CAPTURE_DONE_CXP1"   );
+    addressNames.push_back( "CAPTURE_DONE_CXP2"   );
+    addressNames.push_back( "GT_RX_RESET_EN_CXP0" );
+    addressNames.push_back( "GT_RX_RESET_EN_CXP1" );
+    addressNames.push_back( "GT_RX_RESET_EN_CXP2" );
+    addressNames.push_back( "TX_PRBS_SEL"	  );
+    addressNames.push_back( "RX_PRBS_SEL"	  );
+    addressNames.push_back( "GT_LOOPBACK"	  );
+    addressNames.push_back( "MMCM_RST_EN"	  );
+    addressNames.push_back( "MMCM_LOCKED"	  );
+    addressNames.push_back( "BC0_ERR"	          );
+    addressNames.push_back( "BC0_LOCKED"	  );
+    addressNames.push_back( "FW_DATE_CODE"	  );
+    addressNames.push_back( "FW_GIT_HASH"	  );
+    addressNames.push_back( "FW_GIT_HASH_DIRTY"   );
+
+    return true;
+  }
+
+bool CTP7Client::checkConnection(){
+  sprintf(msg, "Hello");
+  ssize_t bytes_received = getResult();
+  msg[bytes_received] = '\0';
+
+  if(msg == NULL){
+    printConnectionError();
     return false;
   }
 
-  getResult(void* iData, void* oData, ssize_t iSize, ssize_t oSize, bool wait = false);
+  if(strcmp(msg, "HelloToYou!") != 0){
+    std::cout<<"Error! MSG Received: "<<msg<<std::endl;
+    return false;
+  }
+  return true;
+}
 
-  sprintf(msg, "setFilePattern(%x,%x,%x)", bufferType, linkNumber, numberOfValues);
+bool CTP7Client::capture(){
+  sprintf(msg, "capture");
+  ssize_t bytes_received = getResult();
+  msg[bytes_received] = '\0';
 
-)
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
+
+  if(strcmp(msg, "SUCCESS") != 0){
+    std::cout<<"Error! MSG Received: "<<msg<<std::endl;
+    return false;
+  }
+  return true;
+}
+
+bool CTP7Client::softReset(){
+  sprintf(msg, "softReset");
+  ssize_t bytes_received = getResult();
+  msg[bytes_received] = '\0';
+  if(strcmp(msg, "SUCCESS") != 0){
+    std::cout<<"Error! MSG Received: "<<msg<<std::endl;
+    return false;
+  }
+  return true;
+}
+
+bool CTP7Client::hardReset(){
+  sprintf(msg, "hardReset");
+  ssize_t bytes_received = getResult();
+  msg[bytes_received] = '\0';
+
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
+
+  if(strcmp(msg, "SUCCESS") != 0){
+    std::cout<<"Error! MSG Received: "<<msg<<std::endl;
+    return false;
+  }
+  return true;
+}
+
+/*
+bool CTP7Client::counterReset(){
+
+  sprintf(msg, "counterReset");
+  ssize_t bytes_received = getResult();
+  msg[bytes_received] = '\0';
+  if(strcmp(msg, "SUCCESS") != 0){
+    std::cout<<"Error! MSG Received: "<<msg<<std::endl;
+    return false;
+  }
+  return true;
+}
 */
-
 bool CTP7Client::setConstantPattern(BufferType bufferType, 
 				    unsigned int linkNumber, 
 				    unsigned int value) {
@@ -244,10 +448,13 @@ bool CTP7Client::setConstantPattern(BufferType bufferType,
   }
 
   sprintf(msg, "setConstantPattern(%x,%x,%x)", bufferType, linkNumber, value);
-
   ssize_t bytes_received = getResult();
-
   msg[bytes_received] = '\0';
+
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
 
   if(strcmp(msg, "SUCCESS") != 0) {
     std::cout<<"Error! MSG Received: "<<msg<<std::endl;
@@ -274,7 +481,10 @@ bool CTP7Client::setIncreasingPattern(BufferType bufferType,
 
   msg[bytes_received] = '\0';
 
-  if(verbose) std::cout << msg << std::endl;
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
 
   if(strcmp(msg, "SUCCESS") != 0) {
     std::cout<<"Error! MSG Received: "<<msg<<std::endl;
@@ -293,7 +503,11 @@ bool CTP7Client::setDecreasingPattern(BufferType bufferType,
 	  bufferType, linkNumber, startValue, increment);
   ssize_t bytes_received = getResult();
   msg[bytes_received] = '\0';
-  if(verbose) std::cout << msg << std::endl;
+
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
 
   if(strcmp(msg, "SUCCESS") != 0) {
     std::cout<<"Error! MSG Received: "<<msg<<std::endl;
@@ -314,7 +528,10 @@ bool CTP7Client::setRandomPattern(BufferType bufferType,
   ssize_t bytes_received = getResult();
   msg[bytes_received] = '\0';
 
-  if(verbose) std::cout << msg << std::endl;
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
 
   if(strcmp(msg, "SUCCESS") != 0) {
     std::cout<<"Error! MSG Received: "<<msg<<std::endl;
@@ -350,7 +567,10 @@ bool CTP7Client::setPattern(BufferType bufferType,
 
   msg[bytes_received] = '\0';
 
-  if(verbose) std::cout << msg << std::endl;
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
 
   if(strcmp(msg, "READY_FOR_PATTERN_DATA") != 0){
     std::cout<< "Failed to read back a green light from CTP7 Server, failed. :("<<std::endl;
@@ -360,6 +580,11 @@ bool CTP7Client::setPattern(BufferType bufferType,
 
     bytes_received = getResult(pattern.data(), msg, pattern.size()*4, MSGLEN);
     msg[bytes_received] = '\0';
+
+    if(msg == NULL){
+      printConnectionError();
+      return false;
+    }
 
     if(verbose) std::cout << msg << std::endl;
 
@@ -382,8 +607,6 @@ bool CTP7Client::dumpContiguousBuffer(BufferType bufferType,
   sprintf(msg, "dumpContiguousBuffer(%x,%x,%x,%x)", 
 	  bufferType, linkNumber, startAddressOffset, numberOfValues);
 
-  if(verbose) std::cout<<msg<<std::endl;
-
   if(!checkArgs(bufferType, linkNumber, startAddressOffset, numberOfValues)){
     std::cout<<"Failed Check Args Step "<<std::endl; 
       return false;
@@ -391,12 +614,16 @@ bool CTP7Client::dumpContiguousBuffer(BufferType bufferType,
 
  ssize_t bytes_received = getResult(msg, buffer, MSGLEN, numberOfValues*4, true);
 
+  if(msg == NULL){
+    printConnectionError();
+    return false;
+  }
     
   if((unsigned int)bytes_received == (numberOfValues*4)) {
     return true;
   }
 
-  std::cout<<"bytes_received "<<bytes_received<< "numberOfValues*4 "<<numberOfValues*4 <<std::endl;
+  //std::cout<<"bytes_received "<<bytes_received<< "numberOfValues*4 "<<numberOfValues*4 <<std::endl;
 
   return false;
 }
