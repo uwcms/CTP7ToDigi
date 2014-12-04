@@ -143,13 +143,14 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   std::auto_ptr<L1CaloRegionCollection> rctRegions(new L1CaloRegionCollection);
 
   RCTInfoFactory rctInfoFactory;
-  for(uint32_t link = 0; link < NILinks; link+=2) {
+  for(uint32_t link = 0; link < NILinks/2; link++) {
     vector <uint32_t> evenFiberData;
     vector <uint32_t> oddFiberData;
     vector <RCTInfo> rctInfo;
+    //currently 0-5 are odd and 6-11 are even 
     for(uint32_t i = 0; i < 6; i++) {
       evenFiberData.push_back(buffer[link][index+i]);
-      oddFiberData.push_back(buffer[link+1][index+i]);
+      oddFiberData.push_back(buffer[link+5][index+i]);
     }
     rctInfoFactory.produce(evenFiberData, oddFiberData, rctInfo);
     rctInfoFactory.printRCTInfo(rctInfo);
