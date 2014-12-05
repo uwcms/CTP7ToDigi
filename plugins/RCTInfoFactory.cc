@@ -612,7 +612,7 @@ bool RCTInfoFactory::readPatternTestFile(char *textFile , vector<RCTInfo> &rctIn
   while(EVENT<63){
 
     while (1) {
-      ret = fscanf(fptr, "%s", &line);
+      ret = fscanf(fptr, "%s", line);
       if(ret==EOF)
 	break;
       if (strcmp(line,"Event")==0)
