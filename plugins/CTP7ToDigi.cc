@@ -61,6 +61,7 @@ public:
 private:
   virtual void beginJob() override;
   virtual void produce(edm::Event&, const edm::EventSetup&) override;
+  int getLinkNumber(bool even, int crate);
   virtual void endJob() override;
       
   virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
@@ -151,14 +152,24 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   std::auto_ptr<L1CaloRegionCollection> rctRegions(new L1CaloRegionCollection);
 
   RCTInfoFactory rctInfoFactory;
-  for(uint32_t link = 0; link < NILinks; link+=2) {
+
+  for(uint32_t link = 0; link < NILinks/2; link++) {
     vector <uint32_t> evenFiberData;
     vector <uint32_t> oddFiberData;
     vector <RCTInfo> rctInfo;
+
+    int CTP7link;
     for(uint32_t i = 0; i < 6; i++) {
-      evenFiberData.push_back(buffer[link][index+i]);
-      oddFiberData.push_back(buffer[link+1][index+i]);
+      //Order for filling the links is 0 to 18, however, the links are not ordered in the CTP7
+      //getLinkNumber method provides a temporary mapping; a long term getLinkID and match
+      //Needs to be implemented (currently in place in the CTP7 Unpacker)
+    
+      CTP7link = getLinkNumber(true,link);
+      evenFiberData.push_back(buffer[CTP7link][index+i]);
+      CTP7link = getLinkNumber(false,link);
+      oddFiberData.push_back(buffer[CTP7link][index+i]);
     }
+
     rctInfoFactory.produce(evenFiberData, oddFiberData, rctInfo);
     rctInfoFactory.printRCTInfo(rctInfo);
     for(int j = 0; j < 4; j++) {
@@ -191,6 +202,59 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   index += NIntsPerFrame;
   if(index >= std::min(NIntsPerLink, NEventsPerCapture)) index = 0;  
 }
+
+int CTP7ToDigi::getLinkNumber(bool even, int crate){
+  //even is even and odd is odd
+  if(even){
+    if(crate==0)return  15;//LinkID 15: a   
+    if(crate==1)return  18;//LinkID 18: 10a 
+    if(crate==2)return  20;//LinkID 20: 20a 
+    if(crate==3)return  12;//LinkID 12: 30a 
+    if(crate==4)return  13;//LinkID 13: 40a 
+    if(crate==5)return  17;//LinkID 17: 50a 
+    if(crate==6)return   2;//LinkID 2: 60a  
+    if(crate==7)return   5;//LinkID 5: 70a  
+    if(crate==8)return  10;//LinkID 10: 80a 
+    if(crate==9)return   0;//LinkID 0: 90a  
+    if(crate==10)return  1;//LinkID 1: a0a  
+    if(crate==11)return  6;//LinkID 6: b0a  
+    if(crate==12)return 27;//LinkID 27: c0a 
+    if(crate==13)return 30;//LinkID 30: d0a 
+    if(crate==14)return 32;//LinkID 32: e0a 
+    if(crate==15)return 24;//LinkID 24: f0a 
+    if(crate==16)return 25;//LinkID 25: 100a
+    if(crate==17)return 29;//LinkID 29: 110a
+    else{
+      std::cout<<"Failed to find odd crate; since we don't check the linkIDs from CTP7 this must be a software bug! (check with Isobel)"<<std::endl;
+      return 0;}
+  }
+  else{
+    if(crate==0)return  16;//LinkID 16: b   
+    if(crate==1)return  19;//LinkID 19: 10b 
+    if(crate==2)return  21;//LinkID 21: 20b 
+    if(crate==3)return  14;//LinkID 14: 30b 
+    if(crate==4)return  23;//LinkID 23: 40b 
+    if(crate==5)return  22;//LinkID 22: 50b 
+    if(crate==6)return   4;//LinkID 4: 60b  
+    if(crate==7)return   7;//LinkID 7: 70b  
+    if(crate==8)return   8;//LinkID 8: 80b   
+    if(crate==9)return   3;//LinkID 3: 90b  
+    if(crate==10)return  9;//LinkID 9: a0b  
+    if(crate==11)return 11;//LinkID 11: b0b 
+    if(crate==12)return 28;//LinkID 28: c0b 
+    if(crate==13)return 31;//LinkID 31: d0b 
+    if(crate==14)return 33;//LinkID 33: e0b 
+    if(crate==15)return 26;//LinkID 26: f0b 
+    if(crate==16)return 35;//LinkID 35: 100b
+    if(crate==17)return 34;//LinkID 34: 110b
+    else{
+      std::cout<<"Failed to find odd crate; since we don't check the linkIDs from CTP7 this must be a software bug! (check with Isobel)"<<std::endl;
+      return 0;
+    }
+  }
+
+}
+
 
 // ------------ method called once each job just before starting event loop  ------------
 void 
