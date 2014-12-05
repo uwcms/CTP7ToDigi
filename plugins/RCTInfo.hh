@@ -4,6 +4,7 @@
 class RCTInfo {
  public:
   RCTInfo() {
+    crateID = 0;
     c1BC0 = 0;
     c2BC0 = 0;
     c3BC0 = 0;
@@ -44,6 +45,7 @@ class RCTInfo {
     hfQBits = 0;
   }
   RCTInfo(const RCTInfo& in) {
+    crateID = in.crateID;
     c1BC0 = in.c1BC0;
     c2BC0 = in.c2BC0;
     c3BC0 = in.c3BC0;
@@ -78,6 +80,7 @@ class RCTInfo {
     hfQBits = in.hfQBits;
   }
   void operator=(const RCTInfo& in) {
+    this->crateID = in.crateID;
     this->c1BC0 = in.c1BC0;
     this->c2BC0 = in.c2BC0;
     this->c3BC0 = in.c3BC0;
@@ -111,6 +114,7 @@ class RCTInfo {
     }
     this->hfQBits = in.hfQBits;
   }
+  unsigned int crateID;
   unsigned int c1BC0;
   unsigned int c2BC0;
   unsigned int c3BC0;
