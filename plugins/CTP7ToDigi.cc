@@ -78,6 +78,8 @@ private:
   
   uint32_t buffer[NILinks][NIntsPerLink];
 
+  int NEventsPerCapture;
+
 };
 
 //
@@ -99,9 +101,11 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
   // Get host and port
   ctp7Host = iConfig.getUntrackedParameter<std::string>("ctp7Host");
   ctp7Port = iConfig.getUntrackedParameter<std::string>("ctp7Port");
+  NEventsPerCapture = iConfig.getUntrackedParameter<int>("NEventsPerCapture",170);
 
   // Create CTP7Client to communicate with specified host/port 
   ctp7Client = new CTP7Client(ctp7Host.c_str(), ctp7Port.c_str());
+
 
   //register your products
   produces<L1CaloEmCollection>();
@@ -117,6 +121,7 @@ CTP7ToDigi::~CTP7ToDigi()
 }
 
 
+
 //
 // member functions
 //
@@ -129,7 +134,12 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   static uint32_t index = 0;
 
+  cout<<"Event Number? "<<index<<endl;
+
   if(index == 0) {
+
+    ctp7Client->capture();
+
     for(uint32_t link = 0; link < NILinks; link++) {
       if(!ctp7Client->dumpContiguousBuffer(CTP7::inputBuffer, link, 0, NIntsPerLink, buffer[link])) {
 	cerr << "CTP7ToDigi::produce() Error reading from CTP7" << endl;
@@ -145,20 +155,23 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   RCTInfoFactory rctInfoFactory;
 
-  for(uint32_t link = 0; link < NILinks/2; link++) {
+ for(uint32_t link = 0; link < NILinks; link+=2){
+//  for(uint32_t link = 0; link < NILinks/2; link++) {
     vector <uint32_t> evenFiberData;
     vector <uint32_t> oddFiberData;
     vector <RCTInfo> rctInfo;
 
+    cout<<"Crate Number? "<<link<<endl;
+ 
     int CTP7link;
     for(uint32_t i = 0; i < 6; i++) {
       //Order for filling the links is 0 to 18, however, the links are not ordered in the CTP7
       //getLinkNumber method provides a temporary mapping; a long term getLinkID and match
       //Needs to be implemented (currently in place in the CTP7 Unpacker)
     
-      CTP7link = getLinkNumber(true,link);
+      CTP7link = getLinkNumber(true,link/2);
       evenFiberData.push_back(buffer[CTP7link][index+i]);
-      CTP7link = getLinkNumber(false,link);
+      CTP7link = getLinkNumber(false,link/2);
       oddFiberData.push_back(buffer[CTP7link][index+i]);
     }
 
@@ -186,17 +199,20 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     }
   }
 
+
   iEvent.put(rctEMCands);
   iEvent.put(rctRegions);
 
   cout << "CTP7ToDigi::produce() " << index << endl;
 
   index += NIntsPerFrame;
-  if(index >= NIntsPerLink) index = 0;
-  
+  if(index >= std::min(NIntsPerLink, NEventsPerCapture)) index = 0;  
 }
 
 int CTP7ToDigi::getLinkNumber(bool even, int crate){
+
+   //std::cout<<"Crate Number "<<crate<<std::endl;
+
   //even is even and odd is odd
   if(even){
     if(crate==0)return  15;//LinkID 15: a   

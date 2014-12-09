@@ -151,6 +151,11 @@ bool CTP7Client::checkArgs(BufferType bufferType,
       if(linkNumber < NILinks) 
 	return true;
 
+  case s2inputBuffer:
+    if(maxIndex <= NIntsPerLink)
+      if(linkNumber < S2NILinks) 
+	return true;
+
   case outputBuffer:
     if(maxIndex <= NIntsPerLink) 
       if(linkNumber < NOLinks) 
@@ -382,6 +387,7 @@ bool CTP7Client::checkConnection(){
 }
 
 bool CTP7Client::capture(){
+
   sprintf(msg, "capture");
   ssize_t bytes_received = getResult();
   msg[bytes_received] = '\0';
@@ -578,7 +584,7 @@ bool CTP7Client::setPattern(BufferType bufferType,
   }    
   else {
 
-    bytes_received = getResult(pattern.data(), msg, pattern.size()*4, MSGLEN);
+    bytes_received = getResult(pattern.data(), msg, NIntsPerLink*4, MSGLEN);
     msg[bytes_received] = '\0';
 
     if(msg == NULL){

@@ -17,6 +17,7 @@
 //#define NILinks 67
 //#define NOLinks 48
 
+#define S2NILinks 48
 class CTP7 {
 
 public:
@@ -29,7 +30,8 @@ public:
     inputBuffer = 0,
     outputBuffer = 1,
     registerBuffer = 2,
-    unnamed = 3
+    unnamed = 3,
+    s2inputBuffer = 4
   };
 
   // Externally accessible functions to get/set on-board buffers
