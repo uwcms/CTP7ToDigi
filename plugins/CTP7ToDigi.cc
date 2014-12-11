@@ -47,6 +47,10 @@ using namespace std;
 #include "DataFormats/L1CaloTrigger/interface/L1CaloRegionDetId.h"
 #include "DataFormats/L1CaloTrigger/interface/L1CaloCollections.h"
 
+// Scan in file
+
+#include <fstream>
+
 //
 // class declaration
 //
@@ -62,6 +66,7 @@ private:
   virtual void beginJob() override;
   virtual void produce(edm::Event&, const edm::EventSetup&) override;
   int getLinkNumber(bool even, int crate);
+  bool scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink]);
   virtual void endJob() override;
       
   virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
@@ -79,6 +84,9 @@ private:
   uint32_t buffer[NILinks][NIntsPerLink];
 
   int NEventsPerCapture;
+  bool test;
+
+  char fileName[40];
 
 };
 
@@ -102,10 +110,13 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
   ctp7Host = iConfig.getUntrackedParameter<std::string>("ctp7Host");
   ctp7Port = iConfig.getUntrackedParameter<std::string>("ctp7Port");
   NEventsPerCapture = iConfig.getUntrackedParameter<int>("NEventsPerCapture",170);
+  test = iConfig.getUntrackedParameter<bool>("test",false);
 
   // Create CTP7Client to communicate with specified host/port 
   ctp7Client = new CTP7Client(ctp7Host.c_str(), ctp7Port.c_str());
 
+  //set test file name here, shoudl be added as an untrackedParamater
+  sscanf(fileName,"testFile.txt");
 
   //register your products
   produces<L1CaloEmCollection>();
@@ -138,13 +149,22 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
     ctp7Client->capture();
 
-    for(uint32_t link = 0; link < NILinks; link++) {
-      if(!ctp7Client->dumpContiguousBuffer(CTP7::inputBuffer, link, 0, NIntsPerLink, buffer[link])) {
-	cerr << "CTP7ToDigi::produce() Error reading from CTP7" << endl;
+    if(!test) // normal mode
+      for(uint32_t link = 0; link < NILinks; link++) {
+	if(!ctp7Client->dumpContiguousBuffer(CTP7::inputBuffer, link, 0, NIntsPerLink, buffer[link])) {
+	  cerr << "CTP7ToDigi::produce() Error reading from CTP7" << endl;
+	}
       }
-
+    else {// test mode
+      for(uint32_t link = 0; link < NILinks; link++) {
+	//I believe this should be buffer[link*NIntsPerLink] But let's leave at is to check with the format
+	//for dumpContiguousBuffer
+	if(!scanInLink(link,buffer[link])){
+	  cerr << "CTP7ToDigi::produce() Error reading from file: " << fileName << endl;
+	}
+      }
     }
-  }
+    }  
 
   // Take six ints at a time from even and odd fibers, assumed to be neighboring
   // channels to make rctInfo buffer, and from that make rctEMCands and rctRegions
@@ -211,7 +231,7 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   cout <<dec<< "CTP7ToDigi::produce() " << index << endl;
 
   index += NIntsPerFrame;
-  if(index >= std::min(NIntsPerLink, NEventsPerCapture)) index = 0;  
+  if(index >= std::min( (int) NIntsPerLink, NEventsPerCapture)) index = 0;  
 }
 
 int CTP7ToDigi::getLinkNumber(bool even, int crate){
@@ -260,11 +280,51 @@ int CTP7ToDigi::getLinkNumber(bool even, int crate){
     if(crate==16)return 35;//LinkID 35: 100b
     if(crate==17)return 34;//LinkID 34: 110b
     else{
-      std::cout<<"Failed to find odd crate; since we don't check the linkIDs from CTP7 this must be a software bug! (check with Isobel)"<<std::endl;
+      std::cout<<"Failed to find odd crate; since we don't check the linkIDs from CTP7 this must be a software bug! (check with Isobel, as it is likely her fault)"<<std::endl;
       return 0;
     }
   }
 
+}
+ 
+bool CTP7ToDigi::scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink]){
+
+  //std::fstream file;
+  FILE *fptr = fopen(fileName, "r");
+  //file.open(fileName,std::fstream::in | std::fstream::out | std::fstream::app);
+  if(fptr == NULL) {
+    cout<<"Error: Could not open emulator input file "<<endl;
+    return false;
+  } 
+
+  char line[100];
+  char searchTerm[100];
+  int ret = 0; 
+
+  sprintf(searchTerm,"link %u",(unsigned int) link);
+  while (1) {
+    ret = fscanf(fptr, "%s", line);
+    if(ret==EOF){
+      return false;
+      cerr<<"ERROR FINDING TERM IN FILE: "<<searchTerm<<endl;
+    }
+    if (strcmp(line,searchTerm)==0)
+      break;
+  }
+
+  unsigned int tInt;
+  //If found the search term , "link i" then scan in the words 0 to NIntsPerLink
+  for(unsigned int i = 0; i < NIntsPerLink; i++){
+    ret = fscanf(fptr, "%u", &tInt);
+    tempBuffer[i] = tInt;
+    if(ret==EOF){
+      cerr<<"Only found "<< i <<" links"<<std::endl;
+      return false;
+    }
+  }
+
+  return true;
+  
 }
 
 
@@ -325,6 +385,7 @@ CTP7ToDigi::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   desc.setComment("Creates events using data captured in the CTP7 buffers");
   desc.addUntracked<std::string>("ctp7Host", "localhost")->setComment("CTP7 TCP/IP host name");
   desc.addUntracked<std::string>("ctp7Port", "5555")->setComment("CTP7 TCP/IP port name");
+  desc.addUntracked<bool>("test", false)->setComment("Test or normal running?");
 }
 
 //define this as a plug-in
