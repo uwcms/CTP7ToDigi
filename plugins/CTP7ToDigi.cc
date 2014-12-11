@@ -78,6 +78,7 @@ private:
 
   std::string ctp7Host;
   std::string ctp7Port;
+  std::string testFile;
   
   CTP7Client *ctp7Client;
   
@@ -111,7 +112,7 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
   ctp7Port = iConfig.getUntrackedParameter<std::string>("ctp7Port");
   NEventsPerCapture = iConfig.getUntrackedParameter<int>("NEventsPerCapture",170);
   test = iConfig.getUntrackedParameter<bool>("test",false);
-
+  testFile = iConfig.getUntrackedParameter<std::string>("testFile","testFile.txt");
   // Create CTP7Client to communicate with specified host/port 
   ctp7Client = new CTP7Client(ctp7Host.c_str(), ctp7Port.c_str());
 
@@ -156,11 +157,12 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	}
       }
     else {// test mode
+      cout <<"TESTING MODE"<<endl;
       for(uint32_t link = 0; link < NILinks; link++) {
 	//I believe this should be buffer[link*NIntsPerLink] But let's leave at is to check with the format
 	//for dumpContiguousBuffer
 	if(!scanInLink(link,buffer[link])){
-	  cerr << "CTP7ToDigi::produce() Error reading from file: " << fileName << endl;
+	  cerr << "CTP7ToDigi::produce() Error reading from file: " << testFile << endl;
 	}
       }
     }
@@ -195,9 +197,9 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     }
 
     cout<<"Print evenFiberData : ";
-    for (uint32_t i=0; i<evenFiberData.size(); i++){           cout<<evenFiberData.at(i)<<",";    }
+    for (uint32_t i=0; i<evenFiberData.size(); i++){           cout<<hex<<evenFiberData.at(i)<<",";    }
     cout<<endl<<"Print oddFiberData :";
-    for (uint32_t i=0; i<evenFiberData.size(); i++){          cout<<oddFiberData.at(i)<<",";     }
+    for (uint32_t i=0; i<evenFiberData.size(); i++){          cout<<hex<<oddFiberData.at(i)<<",";     }
     cout<<endl;
 
     rctInfoFactory.produce(evenFiberData, oddFiberData, rctInfo);
@@ -289,8 +291,10 @@ int CTP7ToDigi::getLinkNumber(bool even, int crate){
  
 bool CTP7ToDigi::scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink]){
 
+  cout<<"Scanning!!!"<<endl; 
+
   //std::fstream file;
-  FILE *fptr = fopen(fileName, "r");
+  FILE *fptr = fopen(testFile.data(), "r");
   //file.open(fileName,std::fstream::in | std::fstream::out | std::fstream::app);
   if(fptr == NULL) {
     cout<<"Error: Could not open emulator input file "<<endl;
@@ -322,6 +326,8 @@ bool CTP7ToDigi::scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink]){
       return false;
     }
   }
+
+  cout<<"Success!"<<endl;
 
   return true;
   
