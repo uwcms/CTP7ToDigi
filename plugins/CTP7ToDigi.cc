@@ -134,8 +134,6 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   static uint32_t index = 0;
 
-  cout<<"Event Number? "<<index<<endl;
-
   if(index == 0) {
 
     ctp7Client->capture();
@@ -144,6 +142,7 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       if(!ctp7Client->dumpContiguousBuffer(CTP7::inputBuffer, link, 0, NIntsPerLink, buffer[link])) {
 	cerr << "CTP7ToDigi::produce() Error reading from CTP7" << endl;
       }
+
     }
   }
 
@@ -161,7 +160,7 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     vector <uint32_t> oddFiberData;
     vector <RCTInfo> rctInfo;
 
-    cout<<"Crate Number? "<<link<<endl;
+    cout<<endl<<dec<<"Crate Number? --> "<<link/2<<endl;
  
     int CTP7link;
     for(uint32_t i = 0; i < 6; i++) {
@@ -174,6 +173,12 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       CTP7link = getLinkNumber(false,link/2);
       oddFiberData.push_back(buffer[CTP7link][index+i]);
     }
+
+    cout<<"Print evenFiberData : ";
+    for (uint32_t i=0; i<evenFiberData.size(); i++){           cout<<evenFiberData.at(i)<<",";    }
+    cout<<endl<<"Print oddFiberData :";
+    for (uint32_t i=0; i<evenFiberData.size(); i++){          cout<<oddFiberData.at(i)<<",";     }
+    cout<<endl;
 
     rctInfoFactory.produce(evenFiberData, oddFiberData, rctInfo);
     rctInfoFactory.printRCTInfo(rctInfo);
@@ -203,15 +208,13 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   iEvent.put(rctEMCands);
   iEvent.put(rctRegions);
 
-  cout << "CTP7ToDigi::produce() " << index << endl;
+  cout <<dec<< "CTP7ToDigi::produce() " << index << endl;
 
   index += NIntsPerFrame;
   if(index >= std::min(NIntsPerLink, NEventsPerCapture)) index = 0;  
 }
 
 int CTP7ToDigi::getLinkNumber(bool even, int crate){
-
-   //std::cout<<"Crate Number "<<crate<<std::endl;
 
   //even is even and odd is odd
   if(even){
