@@ -10,7 +10,8 @@ process.source = cms.Source("EmptySource")
 
 process.ctp7ToDigi = cms.EDProducer('CTP7ToDigi', 
                                     ctp7Host = cms.untracked.string("144.92.181.245"),
-                                    ctp7Port = cms.untracked.string("5555"))
+                                    ctp7Port = cms.untracked.string("5555"),
+                                    test = cms.untracked.bool(False))
 
 process.p = cms.Path(process.ctp7ToDigi)
 
