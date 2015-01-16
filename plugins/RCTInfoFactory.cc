@@ -24,6 +24,8 @@ using namespace std;
  * June 2014
  */
 
+//captured Value is the captured link ID on the CTP7/MP7 and the remaining values
+//are returned decoded values.
 bool RCTInfoFactory::decodeCapturedLinkID(unsigned int capturedValue, unsigned int & crateNumber, unsigned int & linkNumber, bool & even)
 {
 
@@ -38,17 +40,11 @@ bool RCTInfoFactory::decodeCapturedLinkID(unsigned int capturedValue, unsigned i
     linkNumber = 0xFF;
 
   //currently 0-5 are odd and 6-11 are even
-  if(linkNumber>5)
+  //std::cout<<"linkNumber "<<linkNumber<< " " << (linkNumber & 0x1) <<std::endl;
+  if((linkNumber&0x1) == 0)
     even=true;
   else
     even=false;
-
-  /*
-  if(((linkNumber) & 0x1) == 1)
-    even = false;
-  else
-    even = true;
-  */
 
   return true;
   };
