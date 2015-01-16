@@ -145,9 +145,12 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   using namespace edm;
 
   static uint32_t index = 0;
+  static uint32_t countCycles = 0;
 
   if(index == 0) {
 
+    countCycles++;
+    cout<<"Capture number: "<<dec<<countCycles<<endl;
     ctp7Client->capture();
 
     if(!test) // normal mode
@@ -233,7 +236,8 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   cout <<dec<< "CTP7ToDigi::produce() " << index << endl;
 
   index += NIntsPerFrame;
-  if(index >= std::min( (int) NIntsPerLink, NEventsPerCapture)) index = 0;  
+  uint32_t MINIMUM= std::min( (int) NIntsPerLink, NEventsPerCapture);
+  if(index >= MINIMUM) index = 0;  
 }
 
 int CTP7ToDigi::getLinkNumber(bool even, int crate){
