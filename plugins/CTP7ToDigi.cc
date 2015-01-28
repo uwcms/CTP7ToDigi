@@ -154,6 +154,9 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
     countCycles++;
     cout<<"Capture number: "<<dec<<countCycles<<endl;
+    if(!ctp7Client->checkConnection())
+      cout<<"CTP7 Check Connection FAILED!!!! If you are trying to capture data from CTP7, think again!"<<endl;
+    
     ctp7Client->capture();
 
     if(!test) // normal mode
