@@ -161,7 +161,8 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
     if(!test) // normal mode
       for(uint32_t link = 0; link < NILinks; link++) {
-	if(!ctp7Client->dumpContiguousBuffer(CTP7::inputBuffer, link, 0, NIntsPerLink, buffer[link])) {
+	unsigned int addressOffset = link * NIntsPerLink * 4;
+	if(!ctp7Client->getValues(CTP7::inputBuffer,addressOffset,NIntsPerLink,buffer[link])){
 	  cerr << "CTP7ToDigi::produce() Error reading from CTP7" << endl;
 	}
       }
