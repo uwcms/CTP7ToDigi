@@ -67,6 +67,7 @@ private:
   virtual void produce(edm::Event&, const edm::EventSetup&) override;
   int getLinkNumber(bool even, int crate);
   bool scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink]);
+  void printLinksToFile();
   virtual void endJob() override;
       
   virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
@@ -86,6 +87,7 @@ private:
 
   int NEventsPerCapture;
   bool test;
+  bool createLinkFile;
 
   char fileName[40];
 
@@ -112,12 +114,13 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
   ctp7Port = iConfig.getUntrackedParameter<std::string>("ctp7Port");
   NEventsPerCapture = iConfig.getUntrackedParameter<int>("NEventsPerCapture",170);
   test = iConfig.getUntrackedParameter<bool>("test",false);
+  createLinkFile = iConfig.getUntrackedParameter<bool>("createLinkFile",false);
   testFile = iConfig.getUntrackedParameter<std::string>("testFile","testFile.txt");
   // Create CTP7Client to communicate with specified host/port 
   ctp7Client = new CTP7Client(ctp7Host.c_str(), ctp7Port.c_str());
 
   //set test file name here, shoudl be added as an untrackedParamater
-  sscanf(fileName,"testFile.txt");
+  sprintf(fileName,"testFile.txt");
 
   //register your products
   produces<L1CaloEmCollection>();
@@ -162,14 +165,15 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     else {// test mode
       cout <<"TESTING MODE"<<endl;
       for(uint32_t link = 0; link < NILinks; link++) {
-	//I believe this should be buffer[link*NIntsPerLink] But let's leave at is to check with the format
-	//for dumpContiguousBuffer
 	if(!scanInLink(link,buffer[link])){
 	  cerr << "CTP7ToDigi::produce() Error reading from file: " << testFile << endl;
 	}
       }
     }
-    }  
+
+    if(createLinkFile)
+      printLinksToFile();
+  }  
 
   // Take six ints at a time from even and odd fibers, assumed to be neighboring
   // channels to make rctInfo buffer, and from that make rctEMCands and rctRegions
@@ -292,14 +296,16 @@ int CTP7ToDigi::getLinkNumber(bool even, int crate){
   }
 
 }
+
+/*
+ * This reads in a file of form testFile.txt (see test directory for example)
+ * and outputs a dump of the same form that would be received by a CTP7 Capture
+ */
  
 bool CTP7ToDigi::scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink]){
 
-  cout<<"Scanning!!!"<<endl; 
+  FILE *fptr = fopen(fileName, "r");
 
-  //std::fstream file;
-  FILE *fptr = fopen(testFile.data(), "r");
-  //file.open(fileName,std::fstream::in | std::fstream::out | std::fstream::app);
   if(fptr == NULL) {
     cout<<"Error: Could not open emulator input file "<<endl;
     return false;
@@ -309,32 +315,63 @@ bool CTP7ToDigi::scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink]){
   char searchTerm[100];
   int ret = 0; 
 
-  sprintf(searchTerm,"link %u",(unsigned int) link);
+  char wordLink[20];
+  sprintf(wordLink,"link");
+  sprintf(searchTerm,"%u",(unsigned int) link);
+
+  unsigned int j = 0, i = 0;
+  unsigned int tInt = 0;
+  bool foundlink = false;
+
   while (1) {
     ret = fscanf(fptr, "%s", line);
-    if(ret==EOF){
-      return false;
-      cerr<<"ERROR FINDING TERM IN FILE: "<<searchTerm<<endl;
-    }
-    if (strcmp(line,searchTerm)==0)
+    j++;
+
+    if(ret == EOF)
       break;
-  }
+    
+    if(i == NIntsPerLink)
+      break;
 
-  unsigned int tInt;
-  //If found the search term , "link i" then scan in the words 0 to NIntsPerLink
-  for(unsigned int i = 0; i < NIntsPerLink; i++){
-    ret = fscanf(fptr, "%u", &tInt);
-    tempBuffer[i] = tInt;
-    if(ret==EOF){
-      cerr<<"Only found "<< i <<" links"<<std::endl;
-      return false;
+    
+    if( foundlink && i < NIntsPerLink){
+      //std::cout << line <<" " << std::endl;
+      //if(i%6==0)
+      //std::cout<<endl;
+      sscanf(line, "%x", &tInt);
+      tempBuffer[i] = tInt;
+      i++;
+    }
+
+    if(strcmp(line,wordLink)==0){
+      ret = fscanf(fptr, "%s", line);
+      if (strcmp(line,searchTerm)==0){
+	foundlink = true;
+	//std::cout<<"FOUND LINK!!!!!! "<< searchTerm<< " "<< line<< " At line "<< j <<std::endl;
+      }
     }
   }
 
-  cout<<"Success!"<<endl;
-
+  fclose(fptr);
   return true;
   
+}
+
+void CTP7ToDigi::printLinksToFile(){
+  char outputFile[40];
+  sprintf(outputFile,"outputFile.txt");
+  FILE *fptr = fopen(outputFile, "w");
+  for(unsigned int j = 0; j < NILinks; j++){
+    fprintf( fptr, "\nlink %i\n", j );
+    for(unsigned int i = 0; i< NIntsPerLink; i++){
+      fprintf( fptr, "%x ", buffer[j][i] );
+      if(i%6==5)
+	fputs("\n",fptr);
+    }
+  }
+
+  fclose(fptr);
+
 }
 
 

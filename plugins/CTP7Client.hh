@@ -119,7 +119,7 @@ public:
 		      uint32_t linkNumber,
 		      uint32_t addressOffset) {
     if((bufferType == inputBuffer && linkNumber < NILinks) ||
-       (bufferType == outputBuffer && linkNumber < NOLinks)) {
+       (bufferType == outputBuffer && linkNumber < 36)) {
       return getValue(bufferType, (linkNumber * NIntsPerLink + addressOffset));
     }
     return 0xDEADBEEF;
