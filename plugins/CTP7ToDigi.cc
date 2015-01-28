@@ -68,8 +68,8 @@ private:
   int getLinkNumber(bool even, int crate);
   bool scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink]);
   void printLinksToFile();
-  virtual void endJob() override;
-      
+  bool waitForCaptureSuccess();
+  virtual void endJob() override;      
   virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
   virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
   virtual void beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) override;
@@ -154,10 +154,16 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
     countCycles++;
     cout<<"Capture number: "<<dec<<countCycles<<endl;
-    if(!ctp7Client->checkConnection())
-      cout<<"CTP7 Check Connection FAILED!!!! If you are trying to capture data from CTP7, think again!"<<endl;
+
+    if(!ctp7Client->checkConnection()){
+      cout<<"CTP7 Check Connection FAILED!!!! If you are trying "; 
+      cout<<"to capture data from CTP7, think again!"<<endl;}
     
     ctp7Client->capture();
+
+    if(!waitForCaptureSuccess())
+      cout<<"Capture Not Successful!!!"<<endl;
+    
 
     if(!test) // normal mode
       for(uint32_t link = 0; link < NILinks; link++) {
@@ -378,6 +384,30 @@ void CTP7ToDigi::printLinksToFile(){
 
 }
 
+/*
+ * Check CTP7 Capture Status to see if Capture was Successful
+ * After 5 attempts return false. TCP/IP communication takes 
+ */
+
+bool CTP7ToDigi::waitForCaptureSuccess(){
+
+  int nAttempts = 0;
+  CTP7::CaptureStatus captureStatusTemp;
+  CTP7::CaptureStatus *captureStatus;
+  captureStatus = &captureStatusTemp;
+
+  while(nAttempts<5){
+
+    ctp7Client->getCaptureStatus(captureStatus);
+
+    if(*captureStatus == CTP7::Done)
+      return true;
+
+    nAttempts++;
+  }
+
+  return false;
+}
 
 // ------------ method called once each job just before starting event loop  ------------
 void 
