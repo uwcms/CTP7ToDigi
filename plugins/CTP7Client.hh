@@ -135,7 +135,7 @@ public:
 			    uint32_t startAddressOffset, 
 			    uint32_t numberOfValues, 
 			    uint32_t *buffer = 0) {
-    return getValues(bufferType, (linkNumber * NIntsPerLink + startAddressOffset), numberOfValues, buffer);
+    return getValues(bufferType, (linkNumber * NIntsPerLink * 4 + startAddressOffset), numberOfValues, buffer);
   }
 
   bool setAddress(BufferType bufferType, 
