@@ -47,6 +47,10 @@ using namespace std;
 #include "DataFormats/L1CaloTrigger/interface/L1CaloRegionDetId.h"
 #include "DataFormats/L1CaloTrigger/interface/L1CaloCollections.h"
 
+// Link Monitor Class
+
+#include "CTP7Tests/LinkMonitor/interface/LinkMonitor.h"
+
 // Scan in file
 
 #include <fstream>
@@ -99,6 +103,9 @@ private:
 
 const uint32_t NIntsPerFrame = 6;
 
+//const to fill a temporary vector to fill LinkMonitorCollection later
+typedef std::vector<uint32_t> LinkMonitorTmp;
+
 //
 // static data member definitions
 //
@@ -125,7 +132,7 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
   //register your products
   produces<L1CaloEmCollection>();
   produces<L1CaloRegionCollection>();
-
+  produces<LinkMonitorCollection>();
 }
 
 
@@ -184,6 +191,18 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   std::auto_ptr<L1CaloEmCollection> rctEMCands(new L1CaloEmCollection);
   std::auto_ptr<L1CaloRegionCollection> rctRegions(new L1CaloRegionCollection);
+  //LinkMonitorCollection Final Output Collection
+  std::auto_ptr<LinkMonitorCollection> rctLinkMonitor(new LinkMonitorCollection);
+  //Grab the link vector by first filling a different class-less type
+  std::auto_ptr<LinkMonitorTmp> rctLinksTmp(new LinkMonitorTmp);
+  //Fill the rctLinksTmp 
+  ctp7Client->dumpStatus(*rctLinksTmp);
+ 
+  for (uint32_t i = 0; i < rctLinksTmp->size() ; i++){
+  rctLinkMonitor->push_back(LinkMonitor(rctLinksTmp->at(i)));
+  }
+
+
 
   RCTInfoFactory rctInfoFactory;
 
@@ -240,6 +259,7 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   iEvent.put(rctEMCands);
   iEvent.put(rctRegions);
+  iEvent.put(rctLinkMonitor);
 
   cout <<dec<< "CTP7ToDigi::produce() " << index << endl;
 
