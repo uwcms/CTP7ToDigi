@@ -103,7 +103,7 @@ private:
 
 const uint32_t NIntsPerFrame = 6;
 
-//const to fill a temporary vector to fill LinkMonitorCollection later
+//Fill a vector to fill LinkMonitorCollection later
 typedef std::vector<uint32_t> LinkMonitorTmp;
 
 //
