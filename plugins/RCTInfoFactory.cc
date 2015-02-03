@@ -849,6 +849,26 @@ bool RCTInfoFactory::timeStampChar( char  timeStamp[80] )
   return true;
 }
 
+bool RCTInfoFactory::timeStampCharDate( char  timeStamp[80] )
+{
+  char *the_time = (char *) malloc(sizeof(char)*80);
+  time_t rawtime;  struct tm * timeinfo;  
+  time ( &rawtime ); timeinfo = localtime ( &rawtime );
+  strftime (the_time,80,"%d%m",timeinfo);
+  strcpy(timeStamp, the_time);
+  return true;
+}
+
+bool RCTInfoFactory::timeStampCharTime( char  timeStamp[80] )
+{
+  char *the_time = (char *) malloc(sizeof(char)*80);
+  time_t rawtime;  struct tm * timeinfo;  
+  time ( &rawtime ); timeinfo = localtime ( &rawtime );
+  strftime (the_time,80,"%H%M%S",timeinfo);
+  strcpy(timeStamp, the_time);
+  return true;
+}
+
 bool RCTInfoFactory::regionCompareFile(std::vector<RCTInfo> &rctInfoEmulator,
 				       std::vector<RCTInfo> &rctInfoCapture,
 				       unsigned int BCOffset, unsigned int crate = 0)

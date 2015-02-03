@@ -22,7 +22,7 @@
 #include <memory>
 #include <iostream>
 #include <string>
-
+#include <sys/time.h>
 using namespace std;
 
 // Framework stuff
@@ -50,6 +50,7 @@ using namespace std;
 // Link Monitor Class
 
 #include "CTP7Tests/LinkMonitor/interface/LinkMonitor.h"
+#include "CTP7Tests/TimeMonitor/interface/TimeMonitor.h"
 
 // Scan in file
 
@@ -133,7 +134,7 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
   produces<L1CaloEmCollection>();
   produces<L1CaloRegionCollection>();
   produces<LinkMonitorCollection>();
-
+  produces<TimeMonitorCollection>();
 }
 
 
@@ -196,6 +197,8 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   // Take six ints at a time from even and odd fibers, assumed to be neighboring
   // channels to make rctInfo buffer, and from that make rctEMCands and rctRegions
 
+  RCTInfoFactory rctInfoFactory;
+
   std::auto_ptr<L1CaloEmCollection> rctEMCands(new L1CaloEmCollection);
   std::auto_ptr<L1CaloRegionCollection> rctRegions(new L1CaloRegionCollection);
   //LinkMonitorCollection Final Output Collection
@@ -209,9 +212,18 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   rctLinkMonitor->push_back(LinkMonitor(rctLinksTmp->at(i)));
   }
 
+  std::auto_ptr<TimeMonitorCollection> rctTime(new TimeMonitorCollection);
+  //get date in int form "ddmm"-- if first day starts with zero, will be 3 numbers long
+  char date[80];
+  rctInfoFactory.timeStampCharDate(date);
+  uint16_t ddmm = atol(date);
 
-
-  RCTInfoFactory rctInfoFactory;
+  //get time in long int form "hhmmss"-- if first hour starts with zero(s) will be 5(4) numbers long.
+  char clock[80];
+  rctInfoFactory.timeStampCharTime(clock);
+  uint32_t hms = atol(clock);
+  //Fill the time collection
+  rctTime->push_back(TimeMonitor(ddmm,hms));
 
  for(uint32_t link = 0; link < NILinks; link+=2){
 //  for(uint32_t link = 0; link < NILinks/2; link++) {
@@ -267,6 +279,7 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   iEvent.put(rctEMCands);
   iEvent.put(rctRegions);
   iEvent.put(rctLinkMonitor);
+  iEvent.put(rctTime);
 
   cout <<dec<< "CTP7ToDigi::produce() " << index << endl;
 

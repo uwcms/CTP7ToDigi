@@ -55,6 +55,8 @@ public:
   bool scanInEG(FILE *fptr, RCTInfo &rctInfo, int crateID);
   bool readFileSearch(char* textFile, int searchTerm , unsigned int nInts, unsigned int * Array);
   bool readInputTextFile(char* textFile,std::vector<RCTInfo> &rctInfo);
+  bool timeStampCharDate( char timeStamp[80] );
+  bool timeStampCharTime( char timeStamp[80] );
   bool timeStampChar( char timeStamp[80] );
   bool verbose;
 
