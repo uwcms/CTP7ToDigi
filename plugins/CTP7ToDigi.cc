@@ -149,6 +149,7 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   static uint32_t index = 0;
   static uint32_t countCycles = 0;
+  static uint32_t loopEvents = 0;
 
   if(index == 0) {
 
@@ -229,16 +230,18 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     }
     for(int j = 0; j < 7; j++) {
       for(int k = 0; k < 2; k++) {
-	bool o = (((rctInfo[0].oBits >> (j * 7 + k)) && 0x1) == 0x1);
-	bool t = (((rctInfo[0].tBits >> (j * 7 + k)) && 0x1) == 0x1);
-	bool m = (((rctInfo[0].mBits >> (j * 7 + k)) && 0x1) == 0x1);
-	bool q = (((rctInfo[0].qBits >> (j * 7 + k)) && 0x1) == 0x1);
+	bool o = (((rctInfo[0].oBits >> (j * 2 + k)) & 0x1) == 0x1);
+	bool t = (((rctInfo[0].tBits >> (j * 2 + k)) & 0x1) == 0x1);
+	bool m = (((rctInfo[0].mBits >> (j * 2 + k)) & 0x1) == 0x1);
+	bool q = (((rctInfo[0].qBits >> (j * 2 + k)) & 0x1) == 0x1);
 	rctRegions->push_back(L1CaloRegion(rctInfo[0].rgnEt[j][k], o, t, m, q, link/2, j, k));
       }
     }
     for(int j = 0; j < 2; j++) {
       for(int k = 0; k < 4; k++) {
-	rctRegions->push_back(L1CaloRegion(rctInfo[0].hfEt[j][k], 0, link/2, (j * 2 +  k)));
+        // bool fineGrain = hfFineGrainBits.at(hfRgn);
+        bool fg=(((rctInfo[0].hfQBits>> (j * 4 + k)) & 0x1)  == 0x1); 
+	rctRegions->push_back(L1CaloRegion(rctInfo[0].hfEt[j][k], fg, link/2, (j * 4 +  k)));
       }
     }
   }
@@ -250,8 +253,15 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   cout <<dec<< "CTP7ToDigi::produce() " << index << endl;
 
   index += NIntsPerFrame;
-  uint32_t MINIMUM= std::min( (int) NIntsPerLink, NEventsPerCapture);
-  if(index >= MINIMUM) index = 0;  
+
+  // index and "loopEvents" cannot be the same. loopEvents needs to increase by one, while index is used in evenFiberData and is increased by NIntsPerFrame 
+  // this part needs debugging!
+
+  uint32_t MINIMUM= NEventsPerCapture ;   // The min was a mistake like it was (it made us capture too often for the pattern, we repeat events).
+                                          // Make sure for pattern tests only 64 events are run, but set in the configuration file, not only here
+                                          // To be revised: MINIMUM=std::min( (int) NIntsPerLink, NEventsPerCapture);
+  if(loopEvents >= MINIMUM) loopEvents = 0;  
+  else loopEvents++;
 }
 
 int CTP7ToDigi::getLinkNumber(bool even, int crate){
