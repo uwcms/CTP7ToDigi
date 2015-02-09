@@ -52,6 +52,16 @@ using namespace std;
 #include "CTP7Tests/LinkMonitor/interface/LinkMonitor.h"
 #include "CTP7Tests/TimeMonitor/interface/TimeMonitor.h"
 
+//LD
+#include "CTP7Tests/../DQM/L1TMonitor/interface/L1TOMDSHelper.h"
+#include "DQMServices/Core/interface/DQMStore.h"
+#include "CondTools/RunInfo/interface/L1TriggerScalerHandler.h"
+#include "CondTools/RunInfo/interface/L1TriggerScalerRead.h"
+#include "CondCore/DBCommon/interface/Exception.h"
+#include "CondCore/DBCommon/interface/CredentialStore.h"
+#include "CondCore/IOVService/interface/IOVNames.h"
+
+
 // Scan in file
 
 #include <fstream>
@@ -129,6 +139,23 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
 
   //set test file name here, shoudl be added as an untrackedParamater
   sprintf(fileName,"testFile.txt");
+
+  //set oracle path
+  //string oracleDB="oracle://cms_omds_lb/CMS_RUNINFO";
+  string oracleDB="oracle://cms_orcon_adg/CMS_COND_31X_L1T";
+  string pathCondDB="/afs/cern.ch/cms/DB/conddb/ADG";
+  //connect to OMDS
+  L1TOMDSHelper myOMDSHelper = L1TOMDSHelper();
+  std::cout<<" L1TOMDSHelper... "<<std::endl;
+  int conError;
+  int runNum;
+  myOMDSHelper.connect(oracleDB,pathCondDB,conError);
+  std::cout<<" Connected... "<<std::endl;
+  if (conError == 0){
+     int errorRetrieve;
+     runNum = myOMDSHelper.getRunNumber(0,errorRetrieve);
+     std::cout<<"Run Num: "<<runNum<<std::endl;
+  }
 
   //register your products
   produces<L1CaloEmCollection>();
