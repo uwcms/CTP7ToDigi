@@ -142,20 +142,20 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
 
   //set oracle path
   //string oracleDB="oracle://cms_omds_lb/CMS_RUNINFO";
-  string oracleDB="oracle://cms_orcon_adg/CMS_COND_31X_L1T";
-  string pathCondDB="/afs/cern.ch/cms/DB/conddb/ADG";
+  //string oracleDB="oracle://cms_orcon_adg/CMS_COND_31X_L1T";
+  //string pathCondDB="/afs/cern.ch/cms/DB/conddb/ADG";
   //connect to OMDS
-  L1TOMDSHelper myOMDSHelper = L1TOMDSHelper();
-  std::cout<<" L1TOMDSHelper... "<<std::endl;
-  int conError;
-  int runNum;
-  myOMDSHelper.connect(oracleDB,pathCondDB,conError);
-  std::cout<<" Connected... "<<std::endl;
-  if (conError == 0){
-     int errorRetrieve;
-     runNum = myOMDSHelper.getRunNumber(0,errorRetrieve);
-     std::cout<<"Run Num: "<<runNum<<std::endl;
-  }
+  //L1TOMDSHelper myOMDSHelper = L1TOMDSHelper();
+  //std::cout<<" L1TOMDSHelper... "<<std::endl;
+  //int conError;
+  //int runNum;
+  //myOMDSHelper.connect(oracleDB,pathCondDB,conError);
+  //std::cout<<" Connected... "<<std::endl;
+  //if (conError == 0){
+  //   int errorRetrieve;
+  //   runNum = myOMDSHelper.getRunNumber(0,errorRetrieve);
+  //   std::cout<<"Run Num: "<<runNum<<std::endl;
+  //}
 
   //register your products
   produces<L1CaloEmCollection>();
