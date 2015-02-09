@@ -22,7 +22,7 @@
 #include <memory>
 #include <iostream>
 #include <string>
-
+#include <sys/time.h>
 using namespace std;
 
 // Framework stuff
@@ -46,6 +46,11 @@ using namespace std;
 #include "DataFormats/L1CaloTrigger/interface/L1CaloRegion.h"
 #include "DataFormats/L1CaloTrigger/interface/L1CaloRegionDetId.h"
 #include "DataFormats/L1CaloTrigger/interface/L1CaloCollections.h"
+
+// Link Monitor Class
+
+#include "CTP7Tests/LinkMonitor/interface/LinkMonitor.h"
+#include "CTP7Tests/TimeMonitor/interface/TimeMonitor.h"
 
 // Scan in file
 
@@ -99,6 +104,9 @@ private:
 
 const uint32_t NIntsPerFrame = 6;
 
+//Fill a vector to fill LinkMonitorCollection later
+typedef std::vector<uint32_t> LinkMonitorTmp;
+
 //
 // static data member definitions
 //
@@ -125,7 +133,8 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
   //register your products
   produces<L1CaloEmCollection>();
   produces<L1CaloRegionCollection>();
-
+  produces<LinkMonitorCollection>();
+  produces<TimeMonitorCollection>();
 }
 
 
@@ -149,6 +158,7 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   static uint32_t index = 0;
   static uint32_t countCycles = 0;
+  static uint32_t loopEvents = 0;
 
   if(index == 0) {
 
@@ -188,10 +198,33 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   // Take six ints at a time from even and odd fibers, assumed to be neighboring
   // channels to make rctInfo buffer, and from that make rctEMCands and rctRegions
 
+  RCTInfoFactory rctInfoFactory;
+
   std::auto_ptr<L1CaloEmCollection> rctEMCands(new L1CaloEmCollection);
   std::auto_ptr<L1CaloRegionCollection> rctRegions(new L1CaloRegionCollection);
+  //LinkMonitorCollection Final Output Collection
+  std::auto_ptr<LinkMonitorCollection> rctLinkMonitor(new LinkMonitorCollection);
+  //Grab the link vector by first filling a different class-less type
+  std::auto_ptr<LinkMonitorTmp> rctLinksTmp(new LinkMonitorTmp);
+  //Fill the rctLinksTmp 
+  ctp7Client->dumpStatus(*rctLinksTmp);
+ 
+  for (uint32_t i = 0; i < rctLinksTmp->size() ; i++){
+  rctLinkMonitor->push_back(LinkMonitor(rctLinksTmp->at(i)));
+  }
 
-  RCTInfoFactory rctInfoFactory;
+  std::auto_ptr<TimeMonitorCollection> rctTime(new TimeMonitorCollection);
+  //get date in int form "ddmm"-- if first day starts with zero, will be 3 numbers long
+  char date[80];
+  rctInfoFactory.timeStampCharDate(date);
+  uint16_t ddmm = atol(date);
+
+  //get time in long int form "hhmmss"-- if first hour starts with zero(s) will be 5(4) numbers long.
+  char clock[80];
+  rctInfoFactory.timeStampCharTime(clock);
+  uint32_t hms = atol(clock);
+  //Fill the time collection
+  rctTime->push_back(TimeMonitor(ddmm,hms));
 
  for(uint32_t link = 0; link < NILinks; link+=2){
 //  for(uint32_t link = 0; link < NILinks/2; link++) {
@@ -229,16 +262,18 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     }
     for(int j = 0; j < 7; j++) {
       for(int k = 0; k < 2; k++) {
-	bool o = (((rctInfo[0].oBits >> (j * 7 + k)) && 0x1) == 0x1);
-	bool t = (((rctInfo[0].tBits >> (j * 7 + k)) && 0x1) == 0x1);
-	bool m = (((rctInfo[0].mBits >> (j * 7 + k)) && 0x1) == 0x1);
-	bool q = (((rctInfo[0].qBits >> (j * 7 + k)) && 0x1) == 0x1);
+	bool o = (((rctInfo[0].oBits >> (j * 2 + k)) & 0x1) == 0x1);
+	bool t = (((rctInfo[0].tBits >> (j * 2 + k)) & 0x1) == 0x1);
+	bool m = (((rctInfo[0].mBits >> (j * 2 + k)) & 0x1) == 0x1);
+	bool q = (((rctInfo[0].qBits >> (j * 2 + k)) & 0x1) == 0x1);
 	rctRegions->push_back(L1CaloRegion(rctInfo[0].rgnEt[j][k], o, t, m, q, link/2, j, k));
       }
     }
     for(int j = 0; j < 2; j++) {
       for(int k = 0; k < 4; k++) {
-	rctRegions->push_back(L1CaloRegion(rctInfo[0].hfEt[j][k], 0, link/2, (j * 2 +  k)));
+        // bool fineGrain = hfFineGrainBits.at(hfRgn);
+        bool fg=(((rctInfo[0].hfQBits>> (j * 4 + k)) & 0x1)  == 0x1); 
+	rctRegions->push_back(L1CaloRegion(rctInfo[0].hfEt[j][k], fg, link/2, (j * 4 +  k)));
       }
     }
   }
@@ -246,12 +281,21 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   iEvent.put(rctEMCands);
   iEvent.put(rctRegions);
+  iEvent.put(rctLinkMonitor);
+  iEvent.put(rctTime);
 
   cout <<dec<< "CTP7ToDigi::produce() " << index << endl;
 
   index += NIntsPerFrame;
-  uint32_t MINIMUM= std::min( (int) NIntsPerLink, NEventsPerCapture);
-  if(index >= MINIMUM) index = 0;  
+
+  // index and "loopEvents" cannot be the same. loopEvents needs to increase by one, while index is used in evenFiberData and is increased by NIntsPerFrame 
+  // this part needs debugging!
+
+  uint32_t MINIMUM= NEventsPerCapture ;   // The min was a mistake like it was (it made us capture too often for the pattern, we repeat events).
+                                          // Make sure for pattern tests only 64 events are run, but set in the configuration file, not only here
+                                          // To be revised: MINIMUM=std::min( (int) NIntsPerLink, NEventsPerCapture);
+  if(loopEvents >= MINIMUM) loopEvents = 0;  
+  else loopEvents++;
 }
 
 int CTP7ToDigi::getLinkNumber(bool even, int crate){
