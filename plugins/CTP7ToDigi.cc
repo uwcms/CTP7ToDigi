@@ -51,16 +51,7 @@ using namespace std;
 
 #include "CTP7Tests/LinkMonitor/interface/LinkMonitor.h"
 #include "CTP7Tests/TimeMonitor/interface/TimeMonitor.h"
-
-//LD
-#include "CTP7Tests/../DQM/L1TMonitor/interface/L1TOMDSHelper.h"
-#include "DQMServices/Core/interface/DQMStore.h"
-#include "CondTools/RunInfo/interface/L1TriggerScalerHandler.h"
-#include "CondTools/RunInfo/interface/L1TriggerScalerRead.h"
-#include "CondCore/DBCommon/interface/Exception.h"
-#include "CondCore/DBCommon/interface/CredentialStore.h"
-#include "CondCore/IOVService/interface/IOVNames.h"
-
+#include "RunNumberFactory.hh"
 
 // Scan in file
 
@@ -140,22 +131,6 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
   //set test file name here, shoudl be added as an untrackedParamater
   sprintf(fileName,"testFile.txt");
 
-  //set oracle path
-  //string oracleDB="oracle://cms_omds_lb/CMS_RUNINFO";
-  //string oracleDB="oracle://cms_orcon_adg/CMS_COND_31X_L1T";
-  //string pathCondDB="/afs/cern.ch/cms/DB/conddb/ADG";
-  //connect to OMDS
-  //L1TOMDSHelper myOMDSHelper = L1TOMDSHelper();
-  //std::cout<<" L1TOMDSHelper... "<<std::endl;
-  //int conError;
-  //int runNum;
-  //myOMDSHelper.connect(oracleDB,pathCondDB,conError);
-  //std::cout<<" Connected... "<<std::endl;
-  //if (conError == 0){
-  //   int errorRetrieve;
-  //   runNum = myOMDSHelper.getRunNumber(0,errorRetrieve);
-  //   std::cout<<"Run Num: "<<runNum<<std::endl;
-  //}
 
   //register your products
   produces<L1CaloEmCollection>();
@@ -241,6 +216,10 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   }
 
   std::auto_ptr<TimeMonitorCollection> rctTime(new TimeMonitorCollection);
+  //run number goes in time collection 
+  RunNumberFactory runNumberFactory;
+  int32_t run = runNumberFactory.RunSummary();
+  std::cout<<"Run: "<<run<<std::endl;
   //get date in int form "ddmm"-- if first day starts with zero, will be 3 numbers long
   char date[80];
   rctInfoFactory.timeStampCharDate(date);
@@ -251,10 +230,10 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   rctInfoFactory.timeStampCharTime(clock);
   uint32_t hms = atol(clock);
   //Fill the time collection
-  rctTime->push_back(TimeMonitor(ddmm,hms));
+  rctTime->push_back(TimeMonitor(ddmm,hms,run));
 
  for(uint32_t link = 0; link < NILinks; link+=2){
-//  for(uint32_t link = 0; link < NILinks/2; link++) {
+    //for(uint32_t link = 0; link < NILinks/2; link++) {
     vector <uint32_t> evenFiberData;
     vector <uint32_t> oddFiberData;
     vector <RCTInfo> rctInfo;
