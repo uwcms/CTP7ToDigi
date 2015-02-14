@@ -160,7 +160,7 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   static uint32_t index = 0;
   static uint32_t countCycles = 0;
-  static uint32_t loopEvents = 0;
+  //static uint32_t loopEvents = 0;
 
   if(index == 0) {
 
@@ -258,6 +258,8 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     for (uint32_t i=0; i<evenFiberData.size(); i++){          cout<<hex<<oddFiberData.at(i)<<",";     }
     cout<<endl;
 
+    cout<<"RCT Info size:" << rctInfo.size()<<endl;
+
     rctInfoFactory.produce(evenFiberData, oddFiberData, rctInfo);
     rctInfoFactory.printRCTInfo(rctInfo);
     for(int j = 0; j < 4; j++) {
@@ -297,11 +299,13 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   // index and "loopEvents" cannot be the same. loopEvents needs to increase by one, while index is used in evenFiberData and is increased by NIntsPerFrame 
   // this part needs debugging!
 
-  uint32_t MINIMUM= NEventsPerCapture ;   // The min was a mistake like it was (it made us capture too often for the pattern, we repeat events).
+  uint32_t MINIMUM= NEventsPerCapture ; // /std::min( (int) NIntsPerLink, NEventsPerCapture) ;   // The min was a mistake like it was (it made us capture too often for the pattern, we repeat events).
                                           // Make sure for pattern tests only 64 events are run, but set in the configuration file, not only here
                                           // To be revised: MINIMUM=std::min( (int) NIntsPerLink, NEventsPerCapture);
-  if(loopEvents >= MINIMUM) loopEvents = 0;  
-  else loopEvents++;
+  if(index >= MINIMUM) {index=0;}
+
+  //if(loopEvents>=MINIMUM) loopEvents=0; 
+  //else loopEvents++; 
 }
 
 int CTP7ToDigi::getLinkNumber(bool even, int crate){
