@@ -51,6 +51,7 @@ using namespace std;
 
 #include "CTP7Tests/LinkMonitor/interface/LinkMonitor.h"
 #include "CTP7Tests/TimeMonitor/interface/TimeMonitor.h"
+#include "RunNumberFactory.hh"
 
 // Scan in file
 
@@ -129,6 +130,7 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
 
   //set test file name here, shoudl be added as an untrackedParamater
   sprintf(fileName,"testFile.txt");
+
 
   //register your products
   produces<L1CaloEmCollection>();
@@ -214,6 +216,10 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   }
 
   std::auto_ptr<TimeMonitorCollection> rctTime(new TimeMonitorCollection);
+  //run number goes in time collection 
+  RunNumberFactory runNumberFactory;
+  int32_t run = runNumberFactory.RunSummary();
+  std::cout<<"Run: "<<run<<std::endl;
   //get date in int form "ddmm"-- if first day starts with zero, will be 3 numbers long
   char date[80];
   rctInfoFactory.timeStampCharDate(date);
@@ -224,10 +230,10 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   rctInfoFactory.timeStampCharTime(clock);
   uint32_t hms = atol(clock);
   //Fill the time collection
-  rctTime->push_back(TimeMonitor(ddmm,hms));
+  rctTime->push_back(TimeMonitor(ddmm,hms,run));
 
  for(uint32_t link = 0; link < NILinks; link+=2){
-//  for(uint32_t link = 0; link < NILinks/2; link++) {
+    //for(uint32_t link = 0; link < NILinks/2; link++) {
     vector <uint32_t> evenFiberData;
     vector <uint32_t> oddFiberData;
     vector <RCTInfo> rctInfo;
