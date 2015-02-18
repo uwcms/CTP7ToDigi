@@ -160,9 +160,9 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   static uint32_t index = 0;
   static uint32_t countCycles = 0;
-  //static uint32_t loopEvents = 0;
+  static uint32_t loopEvents = 0;
 
-  if(index == 0) {
+  if(loopEvents == 0) {
 
     countCycles++;
     cout<<"Capture number: "<<dec<<countCycles<<endl;
@@ -304,8 +304,8 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
                                           // To be revised: MINIMUM=std::min( (int) NIntsPerLink, NEventsPerCapture);
   if(index >= MINIMUM) {index=0;}
 
-  //if(loopEvents>=MINIMUM) loopEvents=0; 
-  //else loopEvents++; 
+  if(loopEvents>=MINIMUM) loopEvents=0; 
+  else loopEvents++; 
 }
 
 int CTP7ToDigi::getLinkNumber(bool even, int crate){
