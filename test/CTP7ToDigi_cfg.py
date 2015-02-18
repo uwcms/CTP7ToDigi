@@ -20,7 +20,11 @@ process.ctp7ToDigi = cms.EDProducer('CTP7ToDigi',
                                     ctp7Host = cms.untracked.string("127.0.0.1"),
                                     ctp7Port = cms.untracked.string("5554"),
                                     test = cms.untracked.bool(False),
-                                    createLinkFile = cms.untracked.bool(True))
+                                    createLinkFile = cms.untracked.bool(True),
+                                    #Note to switch to MP7 Mapping you MUST put mp7Mapping to true AND change the testFile.txt to the MP7 Pattern File Name
+                                    testFile = cms.untracked.string("testFile.txt"),
+                                    mp7Mapping = cms.untracked.bool(False)
+                                    )
 
 process.p = cms.Path(process.ctp7ToDigi)
 

@@ -71,8 +71,8 @@ public:
 private:
   virtual void beginJob() override;
   virtual void produce(edm::Event&, const edm::EventSetup&) override;
-  int getLinkNumber(bool even, int crate);
-  bool scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink]);
+  int getLinkNumber(bool even, int crate, bool mp7Mapping);
+  bool scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink], unsigned int offset);
   void printLinksToFile();
   bool waitForCaptureSuccess();
   virtual void endJob() override;      
@@ -94,6 +94,7 @@ private:
   int NEventsPerCapture;
   bool test;
   bool createLinkFile;
+  bool mp7Mapping;
 
   char fileName[40];
 
@@ -124,12 +125,13 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
   NEventsPerCapture = iConfig.getUntrackedParameter<int>("NEventsPerCapture",170);
   test = iConfig.getUntrackedParameter<bool>("test",false);
   createLinkFile = iConfig.getUntrackedParameter<bool>("createLinkFile",false);
+  mp7Mapping = iConfig.getUntrackedParameter<bool>("mp7Mapping",false);
   testFile = iConfig.getUntrackedParameter<std::string>("testFile","testFile.txt");
   // Create CTP7Client to communicate with specified host/port 
   ctp7Client = new CTP7Client(ctp7Host.c_str(), ctp7Port.c_str());
 
   //set test file name here, shoudl be added as an untrackedParamater
-  sprintf(fileName,"testFile.txt");
+  sprintf(fileName,testFile.c_str());
 
 
   //register your products
@@ -161,6 +163,12 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   static uint32_t index = 0;
   static uint32_t countCycles = 0;
   static uint32_t loopEvents = 0;
+  unsigned int offset = 0;
+
+  //this is a silly kludge to adjust the offset for MP7 captures
+  //their offset is off by 4 from CTP7 capture offset (may need adjusting in the future!)
+  if(mp7Mapping)
+    offset = 4;
 
   if(index == 0) {
 
@@ -187,7 +195,7 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     else {// test mode
       cout <<"TESTING MODE"<<endl;
       for(uint32_t link = 0; link < NILinks; link++) {
-	if(!scanInLink(link,buffer[link])){
+	if(!scanInLink(link,buffer[link], offset)){
 	  cerr << "CTP7ToDigi::produce() Error reading from file: " << testFile << endl;
 	}
       }
@@ -246,9 +254,9 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       //getLinkNumber method provides a temporary mapping; a long term getLinkID and match
       //Needs to be implemented (currently in place in the CTP7 Unpacker)
     
-      CTP7link = getLinkNumber(true,link/2);
+      CTP7link = getLinkNumber(true,link/2,mp7Mapping);
       evenFiberData.push_back(buffer[CTP7link][index+i]);
-      CTP7link = getLinkNumber(false,link/2);
+      CTP7link = getLinkNumber(false,link/2,mp7Mapping);
       oddFiberData.push_back(buffer[CTP7link][index+i]);
     }
 
@@ -304,8 +312,8 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   else loopEvents++;
 }
 
-int CTP7ToDigi::getLinkNumber(bool even, int crate){
-
+int CTP7ToDigi::getLinkNumber(bool even, int crate, bool mp7Mapping){
+  if(!mp7Mapping){
   //even is even and odd is odd
   if(even){
     if(crate==0)return  15;//LinkID 15: a   
@@ -354,23 +362,72 @@ int CTP7ToDigi::getLinkNumber(bool even, int crate){
       return 0;
     }
   }
-
+  }
+  else{
+    if(even){
+      if(crate==0)return  0;//LinkID 15: a   
+      if(crate==1)return  8;//LinkID 18: 10a 
+      if(crate==2)return  16;//LinkID 20: 20a 
+      if(crate==3)return  24;//LinkID 12: 30a 
+      if(crate==4)return  32;//LinkID 13: 40a 
+      if(crate==5)return  28;//LinkID 17: 50a 
+      if(crate==6)return  20;//LinkID 2: 60a  
+      if(crate==7)return  12;//LinkID 5: 70a  
+      if(crate==8)return  4;//LinkID 10: 80a 
+      if(crate==9)return  2;//LinkID 0: 90a  
+      if(crate==10)return 10;//LinkID 1: a0a  
+      if(crate==11)return 19;//LinkID 6: b0a  
+      if(crate==12)return 26;//LinkID 27: c0a 
+      if(crate==13)return 34;//LinkID 30: d0a 
+      if(crate==14)return 30;//LinkID 32: e0a 
+      if(crate==15)return 22;//LinkID 24: f0a 
+      if(crate==16)return 14;//LinkID 25: 100a
+      if(crate==17)return 6;//LinkID 29: 110a
+      else{
+      std::cout<<"Failed to find odd crate; since we don't check the linkIDs from CTP7 this must be a software bug! (check with Isobel)"<<std::endl;
+      return 0;}
+    }
+    else{
+      if(crate==0)return  1;//LinkID 16: b   
+      if(crate==1)return  9;//LinkID 19: 10b 
+      if(crate==2)return  17;//LinkID 21: 20b 
+      if(crate==3)return  25;//LinkID 14: 30b 
+      if(crate==4)return  33;//LinkID 23: 40b 
+      if(crate==5)return  29;//LinkID 22: 50b 
+      if(crate==6)return  21;//LinkID 4: 60b  
+      if(crate==7)return  13;//LinkID 7: 70b  
+      if(crate==8)return  5;//LinkID 8: 80b   
+      if(crate==9)return  3;//LinkID 3: 90b  
+      if(crate==10)return 11;//LinkID 9: a0b  
+      if(crate==11)return 18;//LinkID 11: b0b 
+      if(crate==12)return 27;//LinkID 28: c0b 
+      if(crate==13)return 35;//LinkID 31: d0b 
+      if(crate==14)return 31;//LinkID 33: e0b 
+      if(crate==15)return 23;//LinkID 26: f0b 
+      if(crate==16)return 15;//LinkID 35: 100b
+      if(crate==17)return 7;//LinkID 34: 110b
+      else{
+	std::cout<<"Failed to find odd crate; since we don't check the linkIDs from CTP7 this must be a software bug! (check with Isobel, as it is likely her fault)"<<std::endl;
+	return 0;
+      }
+    }
+  }
 }
-
 /*
  * This reads in a file of form testFile.txt (see test directory for example)
  * and outputs a dump of the same form that would be received by a CTP7 Capture
  */
  
-bool CTP7ToDigi::scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink]){
+bool CTP7ToDigi::scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink], unsigned int offset){
 
   FILE *fptr = fopen(fileName, "r");
-
+  std::cout << "reading file "<<fileName<<std::endl;
   if(fptr == NULL) {
     cout<<"Error: Could not open emulator input file "<<endl;
     return false;
   } 
 
+  uint32_t tempBuffer2[NIntsPerLink];
   char line[100];
   char searchTerm[100];
   int ret = 0; 
@@ -392,14 +449,13 @@ bool CTP7ToDigi::scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink]){
     
     if(i == NIntsPerLink)
       break;
-
     
     if( foundlink && i < NIntsPerLink){
       //std::cout << line <<" " << std::endl;
       //if(i%6==0)
       //std::cout<<endl;
       sscanf(line, "%x", &tInt);
-      tempBuffer[i] = tInt;
+      tempBuffer2[i] = tInt;
       i++;
     }
 
@@ -411,6 +467,9 @@ bool CTP7ToDigi::scanInLink(uint32_t link, uint32_t tempBuffer[NIntsPerLink]){
       }
     }
   }
+
+  for(unsigned int j = 0; j < NIntsPerLink-offset; j++)
+    tempBuffer[j] = tempBuffer2[j+offset];
 
   fclose(fptr);
   return true;
