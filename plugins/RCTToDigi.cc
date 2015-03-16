@@ -38,7 +38,7 @@
 
 #include "CTP7Client.hh"
 #include "RCTInfoFactory.hh"
-#include "../src/L1CaloBXCollections.hh"
+//#include "../src/L1CaloBXCollections.hh"
 
 // RCT data formats
 #include "DataFormats/L1CaloTrigger/interface/L1CaloEmCand.h"
@@ -175,8 +175,8 @@ RCTToDigi::RCTToDigi(const edm::ParameterSet& iConfig)
   sprintf(fileName,testFile.c_str());
 
   //register your products
-  produces<L1CaloEmCandBxCollection>();
-  produces<L1CaloRegionBxCollection>();
+  produces<L1CaloEmCollection>();
+  produces<L1CaloRegionCollection>();
   produces<LinkMonitorCollection>();
   produces<TimeMonitorCollection>();
 }
@@ -204,38 +204,48 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   static uint32_t countCycles = 0;
   static uint32_t loopEvents = 0;
 
-  if(index == 0) {
+  countCycles++;
+  cout<<"Capture number: "<<dec<<countCycles<<endl;
+  
+  if(!ctp7Client->checkConnection()){
+    cout<<"CTP7 Check Connection FAILED!!!! If you are trying "; 
+    cout<<"to capture data from CTP7, think again!"<<endl;
+    cout<<"Exiting..."<<endl; exit(0);}
+  
+  if(!test){ // normal mode
+    ctp7Client->setValue( CTP7::daqSpyCaptureRegisters, 0,1);
 
-    countCycles++;
-    cout<<"Capture number: "<<dec<<countCycles<<endl;
-
-    if(!ctp7Client->checkConnection()){
-      cout<<"CTP7 Check Connection FAILED!!!! If you are trying "; 
-      cout<<"to capture data from CTP7, think again!"<<endl;}
-    
-    if(!test){ // normal mode
-      if(!ctp7Client->getValues(CTP7::daqBuffer,0,NIntsInDAQBuffer,buffer)){
-	cerr << "RCTToDigi::produce() Error reading DAQ from CTP7" << endl;
+    int nAttempts = 0;
+    while(1 != ctp7Client->getValue(CTP7::daqSpyCaptureRegisters, 1)){
+      usleep(5);
+      if(nAttempts>20){
+	cout<<"--------- Capture Failed, check if Run is going, Exiting. ----------"<<endl;
+	  exit(0);
       }
     }
-    else { // test mode
-      cout <<"TESTING MODE"<<endl;
-      if(!scanInDAQData(buffer)){
-	cerr << "RCTToDigi::produce() Error reading from file: " << testFile << endl;
-      }
-    }
 
-    //if(createDAQFile)
-      printDAQToFile();
-  }  
+    if(!ctp7Client->getValues(CTP7::daqBuffer,0,NIntsInDAQBuffer,buffer)){
+      cerr << "RCTToDigi::produce() Error reading DAQ from CTP7" << endl;
+    }
+  }
+  else { // test mode
+    cout <<"TESTING MODE"<<endl;
+    if(!scanInDAQData(buffer)){
+      cerr << "RCTToDigi::produce() Error reading from file: " << testFile << endl;
+    }
+  }
+  
+  if(createDAQFile)
+    printDAQToFile();
+
 
   // Dump DAQ Buffer and decode into individual crate even and odd link data
   // channels to make rctInfo buffer, and from that make rctEMCands and rctRegions
 
   RCTInfoFactory rctInfoFactory;
 
-  std::auto_ptr<L1CaloEmCandBxCollection> rctEMCands(new L1CaloEmCandBxCollection);
-  std::auto_ptr<L1CaloRegionBxCollection> rctRegions(new L1CaloRegionBxCollection);
+  std::auto_ptr<L1CaloEmCollection> rctEMCands(new L1CaloEmCollection);
+  std::auto_ptr<L1CaloRegionCollection> rctRegions(new L1CaloRegionCollection);
 
   //LinkMonitorCollection Final Output Collection
   std::auto_ptr<LinkMonitorCollection> rctLinkMonitor(new LinkMonitorCollection);
@@ -282,8 +292,8 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   uint32_t firstBX = 0; uint32_t lastBX = 1; 
   getBXNumbers(L1aBCID, nBX, BCs, firstBX, lastBX);
   
-  rctRegions->setBXRange(0, nBX);
-  rctEMCands->setBXRange(0, nBX);
+  //rctRegions->setBXRange(0, nBX);
+  //rctEMCands->setBXRange(0, nBX);
   
   std::vector<RCTInfo> allCrateRCTInfo[nBX];
   
@@ -398,7 +408,8 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 				       rctInfo.neCard[j], 
 				       rctInfo.crateID, 
 				       false);
-	rctEMCands->push_back( iBX, em);
+	em.setBx(iBX);
+	rctEMCands->push_back(em);
 	
       }
       
@@ -410,13 +421,9 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 				       rctInfo.crateID, 
 				       true);
 	
-	//ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double> > *p4 =
-	//   new ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double> >();
-	//l1t::CaloStage1Cluster cluster;
-	//l1t::CaloEmCand EmCand(*p4, (int) em.rank(), (int) em.regionId().ieta(), (int) em.regionId().iphi(), 0);
-	   
-	   rctEMCands->push_back( iBX, em);
-	 }
+	em.setBx(iBX);
+	rctEMCands->push_back( em);
+      }
 
 	 for(int j = 0; j < 7; j++) {
 
@@ -429,12 +436,8 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
 	     L1CaloRegion rgn = L1CaloRegion(rctInfo.rgnEt[j][k], o, t, m, q, rctInfo.crateID , j, k);
 	     
-	     //ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double> > *p4 =
-	     //new ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double> >();
-	     //l1t::CaloRegion region(*p4, 0., 0., (int) rgn.et(), (int) rgn.id().ieta(), (int) rgn.id().ieta(), (int) rgn.id().iphi(), 0, 0);
-	     // add to ouput
-
-	     rctRegions->push_back( iBX, rgn);
+	     rgn.setBx(iBX);
+	     rctRegions->push_back( rgn);
 	   }
 	 }
 
@@ -445,21 +448,8 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	     bool fg=(((rctInfo.hfQBits>> (j * 4 + k)) & 0x1)  == 0x1); 
 
 	     L1CaloRegion rgn = L1CaloRegion(rctInfo.hfEt[j][k], fg,  rctInfo.crateID , (j * 4 +  k));
-
-	     //ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double> > *p4 =
-	     //new ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double> >();
-	     
-	     //l1t::CaloRegion region(*p4, 
-	     //		       0., 
-	     //		       0., 
-	     //		       (int) rgn.et(), 
-	     //		       (int) rgn.id().ieta(), 
-	     //		       (int) rgn.id().ieta(), 
-	     //		       (int) rgn.id().iphi(), 
-	     //		       0.,
-	     //		       0.);
-	     
-	     rctRegions->push_back( iBX, rgn);
+	     rgn.setBx(iBX);
+	     rctRegions->push_back(rgn);
 	   }
 	 }
     }

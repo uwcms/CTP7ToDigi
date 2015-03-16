@@ -19,7 +19,7 @@ process.rctToDigi = cms.EDProducer('RCTToDigi',
 #                                    ctp7Host = cms.untracked.string("144.92.181.245"),
                                     ctp7Host = cms.untracked.string("127.0.0.1"),
                                     ctp7Port = cms.untracked.string("5554"),
-                                    test = cms.untracked.bool(True),
+                                    test = cms.untracked.bool(False),
                                     createLinkFile = cms.untracked.bool(True),
                                     testFile = cms.untracked.string("daqBuffers/daqBuffer-L1A-3359-nBCs-5.txt")
                                     )
