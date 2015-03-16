@@ -1,0 +1,5 @@
+<lcgdict>
+  <class name="L1CaloEmCand"/>
+  <class name="L1CaloEmCandBxCollection"/>
+  <class name="edm::Wrapper<BXVector<L1CaloEmCand> >"/>
+</lcgdict>
