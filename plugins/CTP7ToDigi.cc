@@ -95,6 +95,7 @@ private:
   bool test;
   bool createLinkFile;
   bool mp7Mapping;
+  bool doTimingScan;
 
   char fileName[40];
 
@@ -129,7 +130,7 @@ CTP7ToDigi::CTP7ToDigi(const edm::ParameterSet& iConfig)
   testFile = iConfig.getUntrackedParameter<std::string>("testFile","testFile.txt");
   // Create CTP7Client to communicate with specified host/port 
   ctp7Client = new CTP7Client(ctp7Host.c_str(), ctp7Port.c_str());
-
+  doTimingScan = iConfig.getUntrackedParameter<bool>("doTimingScan",false);
   //set test file name here, shoudl be added as an untrackedParamater
   sprintf(fileName,testFile.c_str());
 
@@ -164,42 +165,61 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   static uint32_t countCycles = 0;
   static uint32_t loopEvents = 0;
   unsigned int offset = 0;
+  static uint32_t eventNumber=0;
 
   //this is a silly kludge to adjust the offset for MP7 captures
   //their offset is off by 4 from CTP7 capture offset (may need adjusting in the future!)
-  if(mp7Mapping)
-    offset = 4;
+//  if(mp7Mapping)
+  //  offset = 4;
+
+
+  cout<<"Analyzing event "<<eventNumber<<" ("<<loopEvents<<"/"<<countCycles<<")"<<endl; 
 
   if(loopEvents == 0) {
 
-    countCycles++;
     cout<<"Capture number: "<<dec<<countCycles<<endl;
+    index=0;
+
+  //  if(!test) {// normal mode
 
     if(!ctp7Client->checkConnection()){
-      cout<<"CTP7 Check Connection FAILED!!!! If you are trying "; 
+      cout<<"CTP7 Check Connection FAILED!!!! If you are trying ";
       cout<<"to capture data from CTP7, think again!"<<endl;}
-    
+
+
+    uint32_t offsetCapture=0;
+    if(doTimingScan) offsetCapture=170*countCycles;
+
+
+    ctp7Client->setCapturePoint(offsetCapture);
+    countCycles++;
+
     ctp7Client->capture();
 
     if(!waitForCaptureSuccess())
       cout<<"Capture Not Successful!!!"<<endl;
-    
 
-    if(!test) // normal mode
+
       for(uint32_t link = 0; link < NILinks; link++) {
 	unsigned int addressOffset = link * NIntsPerLink * 4;
 	if(!ctp7Client->getValues(CTP7::inputBuffer,addressOffset,NIntsPerLink,buffer[link])){
 	  cerr << "CTP7ToDigi::produce() Error reading from CTP7" << endl;
 	}
       }
+/*
+
+   }
     else {// test mode
       cout <<"TESTING MODE"<<endl;
+      if(mp7Mapping) cout<<"mp7Mapping"<<endl;
       for(uint32_t link = 0; link < NILinks; link++) {
 	if(!scanInLink(link,buffer[link], offset)){
 	  cerr << "CTP7ToDigi::produce() Error reading from file: " << testFile << endl;
 	}
       }
     }
+
+*/
 
     if(createLinkFile)
       printLinksToFile();
@@ -307,13 +327,13 @@ CTP7ToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   // index and "loopEvents" cannot be the same. loopEvents needs to increase by one, while index is used in evenFiberData and is increased by NIntsPerFrame 
   // this part needs debugging!
 
-  uint32_t MINIMUM= NEventsPerCapture ; // /std::min( (int) NIntsPerLink, NEventsPerCapture) ;   // The min was a mistake like it was (it made us capture too often for the pattern, we repeat events).
-                                          // Make sure for pattern tests only 64 events are run, but set in the configuration file, not only here
-                                          // To be revised: MINIMUM=std::min( (int) NIntsPerLink, NEventsPerCapture);
-  if(index >= MINIMUM) {index=0;}
+  uint32_t MINIMUM= 169;//NEventsPerCapture ;
 
-  if(loopEvents>=MINIMUM) loopEvents=0; 
+  if(loopEvents>=MINIMUM) {loopEvents=0;}
   else loopEvents++; 
+
+  eventNumber++;
+   
 }
 
 int CTP7ToDigi::getLinkNumber(bool even, int crate, bool mp7Mapping){
@@ -380,7 +400,7 @@ int CTP7ToDigi::getLinkNumber(bool even, int crate, bool mp7Mapping){
       if(crate==8)return  4;//LinkID 10: 80a 
       if(crate==9)return  2;//LinkID 0: 90a  
       if(crate==10)return 10;//LinkID 1: a0a  
-      if(crate==11)return 19;//LinkID 6: b0a  
+      if(crate==11)return 18;//LinkID 6: b0a  
       if(crate==12)return 26;//LinkID 27: c0a 
       if(crate==13)return 34;//LinkID 30: d0a 
       if(crate==14)return 30;//LinkID 32: e0a 
@@ -403,7 +423,7 @@ int CTP7ToDigi::getLinkNumber(bool even, int crate, bool mp7Mapping){
       if(crate==8)return  5;//LinkID 8: 80b   
       if(crate==9)return  3;//LinkID 3: 90b  
       if(crate==10)return 11;//LinkID 9: a0b  
-      if(crate==11)return 18;//LinkID 11: b0b 
+      if(crate==11)return 19;//LinkID 11: b0b 
       if(crate==12)return 27;//LinkID 28: c0b 
       if(crate==13)return 35;//LinkID 31: d0b 
       if(crate==14)return 31;//LinkID 33: e0b 

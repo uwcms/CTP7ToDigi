@@ -5,6 +5,8 @@ class RCTInfo {
  public:
   RCTInfo() {
     crateID = 0;
+    linkIDEven = 0;
+    linkIDOdd  = 0;
     c1BC0 = 0;
     c2BC0 = 0;
     c3BC0 = 0;
@@ -46,6 +48,8 @@ class RCTInfo {
   }
   RCTInfo(const RCTInfo& in) {
     crateID = in.crateID;
+    linkIDEven = in.linkIDEven;
+    linkIDOdd  = in.linkIDOdd;
     c1BC0 = in.c1BC0;
     c2BC0 = in.c2BC0;
     c3BC0 = in.c3BC0;
@@ -81,6 +85,8 @@ class RCTInfo {
   }
   void operator=(const RCTInfo& in) {
     this->crateID = in.crateID;
+    this->linkIDEven = in.linkIDEven;
+    this->linkIDOdd  = in.linkIDOdd;
     this->c1BC0 = in.c1BC0;
     this->c2BC0 = in.c2BC0;
     this->c3BC0 = in.c3BC0;
@@ -115,6 +121,8 @@ class RCTInfo {
     this->hfQBits = in.hfQBits;
   }
   unsigned int crateID;
+  unsigned int linkIDEven;
+  unsigned int linkIDOdd; 
   unsigned int c1BC0;
   unsigned int c2BC0;
   unsigned int c3BC0;
