@@ -169,7 +169,8 @@ RCTToDigi::RCTToDigi(const edm::ParameterSet& iConfig)
   createDAQFile = iConfig.getUntrackedParameter<bool>("createDAQFile",false);
   testFile = iConfig.getUntrackedParameter<std::string>("testFile","testFile.txt");
   // Create CTP7Client to communicate with specified host/port 
-  ctp7Client = new CTP7Client(ctp7Host.c_str(), ctp7Port.c_str());
+  if(!test)
+    ctp7Client = new CTP7Client(ctp7Host.c_str(), ctp7Port.c_str());
 
   //set test file name here, shoudl be added as an untrackedParamater
   sprintf(fileName,testFile.c_str());
@@ -195,10 +196,26 @@ RCTToDigi::~RCTToDigi()
 //
 
 // ------------ method called to produce the data  ------------
+// NOTICE: A Number of data checks are performed, if data appears
+//         corrupted then this will produce nothing.
+//
+
 void
 RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
   using namespace edm;
+
+  RCTInfoFactory rctInfoFactory;
+
+  std::auto_ptr<L1CaloEmCollection> rctEMCands(new L1CaloEmCollection);
+  std::auto_ptr<L1CaloRegionCollection> rctRegions(new L1CaloRegionCollection);
+
+  //LinkMonitorCollection Final Output Collection
+  std::auto_ptr<LinkMonitorCollection> rctLinkMonitor(new LinkMonitorCollection);
+
+  //Grab the link vector by first filling a different class-less type
+  std::auto_ptr<LinkMonitorTmp> rctLinksTmp(new LinkMonitorTmp);
+
 
   static uint32_t index = 0;
   static uint32_t countCycles = 0;
@@ -206,15 +223,15 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   countCycles++;
   cout<<"Capture number: "<<dec<<countCycles<<endl;
-  
-  if(!ctp7Client->checkConnection()){
-    cout<<"CTP7 Check Connection FAILED!!!! If you are trying "; 
-    cout<<"to capture data from CTP7, think again!"<<endl;
-    cout<<"Exiting..."<<endl; exit(0);}
-  
-  if(!test){ // normal mode
-    ctp7Client->setValue( CTP7::daqSpyCaptureRegisters, 0,1);
 
+  if(!test){ // normal mode
+    if(!ctp7Client->checkConnection()){
+      cout<<"CTP7 Check Connection FAILED!!!! If you are trying "; 
+      cout<<"to capture data from CTP7, think again!"<<endl;
+      cout<<"Exiting..."<<endl; exit(0);
+    }
+    ctp7Client->setValue( CTP7::daqSpyCaptureRegisters, 0,1);
+    
     int nAttempts = 0;
     while(1 != ctp7Client->getValue(CTP7::daqSpyCaptureRegisters, 1)){
       usleep(5);
@@ -224,9 +241,17 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       }
     }
 
-    if(!ctp7Client->getValues(CTP7::daqBuffer,0,NIntsInDAQBuffer,buffer)){
+    if(!ctp7Client->getValues(CTP7::daqBuffer,0,2047,buffer)){
       cerr << "RCTToDigi::produce() Error reading DAQ from CTP7" << endl;
     }
+
+    //Fill the rctLinksTmp 
+    ctp7Client->dumpStatus(*rctLinksTmp);
+    
+    for (uint32_t i = 0; i < rctLinksTmp->size() ; i++){
+      rctLinkMonitor->push_back(LinkMonitor(rctLinksTmp->at(i)));
+    }
+    
   }
   else { // test mode
     cout <<"TESTING MODE"<<endl;
@@ -241,40 +266,6 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   // Dump DAQ Buffer and decode into individual crate even and odd link data
   // channels to make rctInfo buffer, and from that make rctEMCands and rctRegions
-
-  RCTInfoFactory rctInfoFactory;
-
-  std::auto_ptr<L1CaloEmCollection> rctEMCands(new L1CaloEmCollection);
-  std::auto_ptr<L1CaloRegionCollection> rctRegions(new L1CaloRegionCollection);
-
-  //LinkMonitorCollection Final Output Collection
-  std::auto_ptr<LinkMonitorCollection> rctLinkMonitor(new LinkMonitorCollection);
-
-  //Grab the link vector by first filling a different class-less type
-  std::auto_ptr<LinkMonitorTmp> rctLinksTmp(new LinkMonitorTmp);
-
-  //Fill the rctLinksTmp 
-  ctp7Client->dumpStatus(*rctLinksTmp);
- 
-  for (uint32_t i = 0; i < rctLinksTmp->size() ; i++){
-    rctLinkMonitor->push_back(LinkMonitor(rctLinksTmp->at(i)));
-  }
-
-  /*
-  std::auto_ptr<TimeMonitorCollection> rctTime(new TimeMonitorCollection);
-  //get date in int form "ddmm"-- if first day starts with zero, will be 3 numbers long
-  char date[80];
-  rctInfoFactory.timeStampCharDate(date);
-  uint16_t ddmm = atol(date);
-
-  //get time in long int form "hhmmss"-- if first hour starts with zero(s) will be 5(4) numbers long.
-  char clock[80];
-  rctInfoFactory.timeStampCharTime(clock);
-  uint32_t hms = atol(clock);
-  //Fill the time collection
-  rctTime->push_back(TimeMonitor(ddmm,hms));
-  */
-
   uint32_t nBX = 0; 
   uint32_t ctp7FWVersion;
   uint32_t L1ID, L1aBCID;
@@ -334,7 +325,6 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       allLinks[iBX][iLink].crateID            = crateID;
       allLinks[iBX][iLink].capturedLinkNumber = capturedLinkNumber;
       allLinks[iBX][iLink].even               = even;
-
       //std::cout<<std::dec<<"iLink "<<iLink<<" crateID "<<crateID<<" even "<<even<<std::endl;   
 
       for(unsigned int iWord = 0; iWord < 6 ; iWord++ ){
@@ -378,7 +368,10 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	for (unsigned int iBX=0; iBX<nBX; iBX++){
 	  RCTInfoFactory rctInfoFactory;
 	  std::vector <RCTInfo> rctInfoData;
-	  rctInfoFactory.produce(even[iBX].uint, odd[iBX].uint, rctInfoData);
+	  if(!rctInfoFactory.produce(even[iBX].uint, odd[iBX].uint, rctInfoData)){
+	    std::cout<<"Failed to produce data; corrupted data? Exiting."<<std::endl;
+	    return;
+	  }
 	  rctInfoFactory.setRCTInfoCrateID(rctInfoData, iCrate);
 	  allCrateRCTInfo[iBX].push_back(rctInfoData.at(0));
 	}
@@ -435,7 +428,7 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	     bool q = (((rctInfo.qBits >> (j * 2 + k)) & 0x1) == 0x1);
 
 	     L1CaloRegion rgn = L1CaloRegion(rctInfo.rgnEt[j][k], o, t, m, q, rctInfo.crateID , j, k);
-	     
+	     std::cout<<"rgn pt "<< rgn.et()<<std::endl;
 	     rgn.setBx(iBX);
 	     rctRegions->push_back( rgn);
 	   }

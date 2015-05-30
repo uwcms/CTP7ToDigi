@@ -20,7 +20,6 @@ using namespace std;
  * from oRSC capture RAMs and oRSC output (to CTP7/MP7)
  * As well as tools to make bit comparison easier
  *
- * Authors: Sridhara Dasu, Isobel Ojalvo
  * June 2014
  */
 
@@ -59,98 +58,6 @@ bool RCTInfoFactory::setRCTInfoCrateID(std::vector<RCTInfo> &rctInfoVector, unsi
 
 }
 
-bool RCTInfoFactory::compare(RCTInfo rctInfoA, 
-			     RCTInfo rctInfoB, 
-			     RCTInfo rctInfoDiff, 
-			     char *ErrorMsg)
-{
-  bool passCompare = true;
-  strcpy(ErrorMsg,"");
-
-  //Do not count failing BC0 check as not passing comparison
-  //TODO: Check if a BC0 check is ever necessary
-  rctInfoDiff.c1BC0 = rctInfoA.c1BC0 ^ rctInfoB.c1BC0;
-  rctInfoDiff.c2BC0 = rctInfoA.c2BC0 ^ rctInfoB.c2BC0;
-  rctInfoDiff.c3BC0 = rctInfoA.c3BC0 ^ rctInfoB.c3BC0;
-  rctInfoDiff.c4BC0 = rctInfoA.c4BC0 ^ rctInfoB.c4BC0;
-  rctInfoDiff.c5BC0 = rctInfoA.c5BC0 ^ rctInfoB.c5BC0;
-  rctInfoDiff.c6BC0 = rctInfoA.c6BC0 ^ rctInfoB.c6BC0;
-
-  //EISO/NISO
-  for(int i = 0; i < 4; i++){
-    rctInfoDiff.ieTenBit[i]   = rctInfoA.ieTenBit[i] ^ rctInfoB.ieTenBit[i];
-    rctInfoDiff.ieCard[i]     = rctInfoA.ieCard[i] ^ rctInfoB.ieCard[i];
-    rctInfoDiff.ieRegn[i]     = rctInfoA.ieRegn[i] ^ rctInfoB.ieRegn[i];
-    rctInfoDiff.ieRank[i]     = rctInfoA.ieRank[i] ^ rctInfoB.ieRank[i];
-  }
-
-  for(int i = 0; i < 4; i++){
-    rctInfoDiff.neTenBit[i]   = rctInfoA.neTenBit[i] ^ rctInfoB.neTenBit[i];
-    rctInfoDiff.neCard[i]     = rctInfoA.neCard[i] ^ rctInfoB.neCard[i];
-    rctInfoDiff.neRegn[i]     = rctInfoA.neRegn[i] ^ rctInfoB.neRegn[i];
-    rctInfoDiff.neRank[i]     = rctInfoA.neRank[i] ^ rctInfoB.neRank[i];
-  }
-
-  for(int i = 0; i<4; i++)
-    if(rctInfoDiff.neTenBit[i]!=0){
-      strcat(ErrorMsg,"ErrorNIsoEG ");
-      passCompare=false;
-    }
-
-  for(int i = 0; i<4; i++)
-    if(rctInfoDiff.ieTenBit[i]!=0){
-      strcat(ErrorMsg,"ErrorIsoEG ");
-      passCompare=false;
-    }
-
-  //HFET
-  //HFEt[8]={0};
-  for(int i = 0; i < 2; i++) 
-    for(int j = 0; j < 4; j++){
-      rctInfoDiff.hfEt[i][j] = rctInfoA.hfEt[i][j] ^ rctInfoB.hfEt[i][j];
-      }
-
-
-  for(int i = 0; i < 2; i++) 
-    for(int j = 0; j < 4; j++){
-      if(rctInfoDiff.hfEt[i][j] != 0 ){
-	strcat(ErrorMsg,"ErrorHF ");
-	passCompare=false;
-      }
-    }
-
-  //RgnET
-  //RgnEt[14]={0};
-  for(int i = 0; i < 7; i++) 
-    for(int j = 0; j < 2; j++){
-      rctInfoDiff.rgnEtTenBit[i][j] = rctInfoA.rgnEtTenBit[i][j] ^ rctInfoB.rgnEtTenBit[i][j];
-    }
-
-
-  for(int i = 0; i < 7; i++) 
-    for(int j = 0; j < 2; j++){
-      if(rctInfoDiff.rgnEtTenBit[i][j]!=0){
-	strcat(ErrorMsg,"ErrorRegions ");
-	passCompare=false;
-      }
-    }
-
-  //QMTOHF-Q
-  //qmhfBits[3];
-  rctInfoDiff.qBits = rctInfoA.qBits ^ rctInfoB.qBits;
-  rctInfoDiff.mBits = rctInfoA.mBits ^ rctInfoB.mBits;
-  rctInfoDiff.hfQBits = rctInfoA.hfQBits ^ rctInfoB.hfQBits;
-
-  if(rctInfoDiff.qBits!=0||rctInfoDiff.mBits!=0||rctInfoDiff.hfQBits!=0){
-      strcpy(ErrorMsg,"ErrorQMHF ");
-      passCompare=false;
-  }
-
-
-  return passCompare;
-
-}
-
 /*
  * Extract RCT Object Info from oRSC Output Fibers
  * Primarily intended for use on CTP7/MP7
@@ -159,7 +66,7 @@ bool RCTInfoFactory::compare(RCTInfo rctInfoA,
 bool RCTInfoFactory::produce(const std::vector <unsigned int> evenFiberData, 
 			     const std::vector <unsigned int> oddFiberData,
 			     std::vector <RCTInfo> &rctInfoData) {
-
+  static int nPrintOuts = 0;
   // Ensure that there is data to process
   unsigned int nWordsToProcess = evenFiberData.size();
   unsigned int remainder = nWordsToProcess%6;
@@ -172,7 +79,6 @@ bool RCTInfoFactory::produce(const std::vector <unsigned int> evenFiberData,
     return false;
   }
   else if((nWordsToProcess % 6) != 0) {
-    //std::cerr << "RCTInfoFactory::produce -- Correct protocol expects 6x32-bit words! "<< nWordsToProcess << " Remainder of "<< nWordsToProcess % 6 << std::endl;
     nWordsToProcess=nWordsToProcess-remainder;
   }
 
@@ -187,6 +93,20 @@ bool RCTInfoFactory::produce(const std::vector <unsigned int> evenFiberData,
     }
     if(!verifyHammingCode((unsigned char *) &oddFiberData[iBX * 6])) {
       std::cerr << "Hamming code failed for odd fiber for bunch crossing" << iBX << std::endl;
+    }
+
+    if(inAbortGap( evenFiberData[iBX * 6 ], oddFiberData[iBX * 6 ])) {
+      if(nPrintOuts<10)
+	std::cout<<"First word is 0x505050BC. Appears we are in the Abort Gap. Skipping."<<std::endl;
+      nPrintOuts++;
+      continue;
+    }
+
+    if(!verifyBXBytes( evenFiberData[iBX * 6 ], oddFiberData[iBX * 6 ])) {
+      std::cerr << "Error BX Byte is not 0x7C or 0x3C --- Discarding this capture!! " <<std::hex<< evenFiberData[iBX * 6 ] << " " << oddFiberData[iBX * 6 ] << std::endl;
+      std::cerr << "Possibly this is due to a single dropped packet or something worse is wrong"<< std::endl;
+      rctInfoData.clear();
+      return false;
     }
     RCTInfo rctInfo;
     // We extract into rctInfo the data from RCT crate
@@ -454,16 +374,10 @@ bool RCTInfoFactory::printRCTInfo(const std::vector<RCTInfo> &rctInfo){
     cout << hex << setfill('0') << setw(1) << rctInfo[iBC].c5BC0 << " ";
     cout << hex << setfill('0') << setw(1) << rctInfo[iBC].c6BC0 << endl;
     cout << "EISO/NISO (Card,Region,Rank) 1-4: ";
-    for(int i = 0; i < 2; i++) {
+    for(int i = 0; i < 4; i++) {
       cout << hex << setfill('0') << "(" << setw(1) << rctInfo[iBC].ieCard[i] << "," << setw(1) << rctInfo[iBC].ieRegn[i] << "," << setw(2) << rctInfo[iBC].ieRank[i] << ") ";
     }
-    for(int i = 0; i < 2; i++) {
-      cout << hex << setfill('0') << "(" << setw(1) << rctInfo[iBC].neCard[i] << "," << setw(1) << rctInfo[iBC].neRegn[i] << "," << setw(2) << rctInfo[iBC].neRank[i] << ") ";
-    }
-    for(int i = 2; i < 4; i++) {
-      cout << hex << setfill('0') << "(" << setw(1) << rctInfo[iBC].ieCard[i] << "," << setw(1) << rctInfo[iBC].ieRegn[i] << "," << setw(2) << rctInfo[iBC].ieRank[i] << ") ";
-    }
-    for(int i = 2; i < 4; i++) {
+    for(int i = 0; i < 4; i++) {
       cout << hex << setfill('0') << "(" << setw(1) << rctInfo[iBC].neCard[i] << "," << setw(1) << rctInfo[iBC].neRegn[i] << "," << setw(2) << rctInfo[iBC].neRank[i] << ") ";
     }
     cout << endl;
@@ -552,292 +466,37 @@ bool RCTInfoFactory::printRCTInfoToFile(const std::vector<RCTInfo> &rctInfo, std
 
 bool RCTInfoFactory::verifyHammingCode(const unsigned char *data) {return true;};
 
+bool RCTInfoFactory::verifyBXBytes(const unsigned int &evenFiber, const unsigned int &oddFiber) {
+
+  bool status = true;
+
+  if(((evenFiber&0xFF) != 0x7C) && ((evenFiber&0xFF) != 0x3C)){
+    std::cerr<<"Error BX Signal on Even Fiber is not 0x7C or 0x3C it is:"<< (evenFiber&0xFF) << std::endl;
+    status = false;
+  }
+
+  if(((oddFiber&0xFF) != 0x7C) && ((oddFiber&0xFF) != 0x3C)){
+    std::cerr<<"Error BX Signal on Odd Fiber is not 0x7C or 0x3C it is: "<< oddFiber <<" "<< (oddFiber&0xFF) << std::endl;
+    status = false;
+  }
+
+  return status;
+
+};
 
 /*
- * The scan in function is built around the outputted emulator text files. Their
- * format is summarized below. 
- *
- * Format of Pattern Test Output Files:
- *
- * Event EVENT                                                                                            ##EVENT Indicates Variable
- *
- * L1 RCT EmCand Objects                                                                                  ##TextInFile
- * rank: XX  eta_bin: X  phi_bin: X.  crate: (0-17)  card: (0-3)  region: (0)  isolated: (0-1)            ##X Indicates Variable
- *
- * Regions                                                                                                ##TextInFile  
- * Et   o/f     f/g	tau	mip	qt	RCTcrt  RCTcrd  RCTrgn  RCTeta  RCTphi  GCTeta  GCTphi    ##TextInFile	
- * Et    of      fg     tau     mip     qt      RCTcrt  RCTcrd  RCTrgn  RCTeta  RCTphi  GCTeta  GCTphi    ##Named variable
- *
- * HF
- * Et 	o/f	f/g	tau	mip	qt	RCTcrt	RCTcrd 	  RCTrgn  RCTeta  RCTphi  GCTeta  GCTphi  ##TextInFile	
- * Et  NULL      fg    NULL    NULL   NULL      RCTcrt     999  RCTHFrgn  RCTeta  RCTphi  GCTeta  GCTphi  ##Named variable
- *
+ * Check if first word matches abort gap, if yes, presume in abort gap and skip BX
  */
+bool RCTInfoFactory::inAbortGap(const unsigned int &evenFiber, const unsigned int &oddFiber) {
+  if(evenFiber == 0x505050BC)
+    return true;
 
-bool RCTInfoFactory::readPatternTestFile(char *textFile , vector<RCTInfo> &rctInfo, unsigned int inputCrateNumber)
-{
-  int EVENT = 0, ret = 0;
-  char line[100];
-  int crateID;
+  if(oddFiber == 0x505050BC)
+    return true;
 
-  //Take Care of Crate ID   
-  if(inputCrateNumber!=99){
-    crateID = inputCrateNumber;
-  }
-  else{
-    char* crate_id = getenv( "SET_CRATE_ID" );
-    crateID = atoi(crate_id);
-  }
-  if(verbose)cout<<"Crate ID Set To "<< crateID<<endl;
-
-  if ( crateID < 0 || crateID > 17){
-    cout<<"ERROR SET_CRATE_ID NOT VALID!!!! Please set this environment variable and try again."<<endl;
-    return false;
-  }
-
-  RCTInfo rctInfoTmp;
-  FILE *fptr = fopen(textFile, "r");
-
-  if(fptr == NULL) {
-    cout<<"Error: Could not open emulator input file "<<endl;
-    return false;
-  } 
-
-  bool EG = false, REG = false, HF = false;
-
-  while(EVENT<63){
-
-    while (1) {
-      ret = fscanf(fptr, "%s", line);
-      if(ret==EOF)
-	break;
-      if (strcmp(line,"Event")==0)
-	break;
-    }
-
-    if(ret==EOF)
-      break;
-    
-    fscanf(fptr,"%i",&EVENT);
-    if(verbose)cout<<"Event Number "<<EVENT<<endl;
-
-    while(!EG||!HF||!REG){
-    ret = fscanf(fptr, "%s", line);
-
-    if(strcmp(line,"L1")==0){
-      if(verbose)cout<<"Found EG"<<endl;
-      scanInEG(fptr, rctInfoTmp,(int) crateID);
-      EG=true;
-    }
-
-    if(strcmp(line,"Regions")==0){
-      if(verbose)cout<<"Found Regions"<<endl;
-      scanInRegions(fptr, rctInfoTmp,(int)crateID);
-      REG=true;
-    }
-
-    if(strcmp(line,"HF")==0){
-      if(verbose)cout<<"Found HF"<<endl;
-      scanInHF(fptr, rctInfoTmp,(int)crateID);
-      HF=true;      
-    }
-    }
-    if(EG && REG && HF){
-      //set rctInfo Crate ID
-      rctInfoTmp.crateID = crateID;
-      rctInfo.push_back(rctInfoTmp);
-
-      //reinitalize EG,REG and HF check for new event
-      EG=false;REG = false; HF = false;
-    }
-    
-    if(EVENT==63)
-      break;
-
-    continue;
-  }
-
-  return true;
+  else return false;
 }
 
-/*
- * Specialized sub-functions to read in data from each type of candidate
- * Set RCTInfo with RCT Region Et
- * Compile tau bits into one tauBit Value
- */
-
-bool RCTInfoFactory::scanInRegions(FILE *fptr, RCTInfo &rctInfo, int crateID){
-  unsigned int bit = 0;
-  int  Et=0, of=0, fg=0, tau=0, mip=0, qt=0, RCTcrt=0, RCTcrd=0, RCTrgn=0, RCTeta=0, RCTphi=0, GCTeta=0, GCTphi=0;
-  unsigned int i = 0;
-  char tmp[100];
-  
-  fscanf(fptr,
-	   "%s    %s   %s    %s    %s  %s      %s      %s      %s      %s      %s      %s      %s",
-	   tmp, tmp, tmp,  tmp,  tmp, tmp,     tmp,     tmp,     tmp,     tmp,     tmp,     tmp,tmp);
-    
-  //Next lines Contain data
-
-  while(1){
-
-    fscanf(fptr,
-    "%i   %i   %i   %i    %i    %i      %i      %i      %i      %i      %i      %i      %i",
-     &Et, &of, &fg, &tau, &mip, &qt, &RCTcrt, &RCTcrd, &RCTrgn, &RCTeta, &RCTphi, &GCTeta, &GCTphi);
-    if(verbose)cout<<Et<< " " <<of<< " " <<fg<< " " <<tau<< " " <<mip<< " " <<qt<< " " <<RCTcrt<< " " <<RCTcrd<< " " <<RCTrgn<< " " <<RCTeta<< " " <<RCTphi<< " " <<GCTeta<< " " <<GCTphi<<endl;
-
-    if(RCTcrt!=crateID)
-      continue;
-    if(RCTcrd>6)
-      return false;
-    if(RCTrgn>1)
-      return false;
-    
-    rctInfo.rgnEt[RCTcrd][RCTrgn] = Et;
-    bit = RCTcrd*2 + RCTrgn;
-    rctInfo.tBits |= (tau << bit);
-    rctInfo.oBits |= (of  << bit);
-    rctInfo.qBits |= (qt  << bit);
-
-    if(i>12)
-      break;
-
-    i+=1;
-  }
-
-  return true;
-}
-
-/*
- * See Above For implmentation
- * Special Feature that makes HF different from Regions is 
- * only having 8 regions split into two sets of phi values
- * Along with only having hfET and hfQBits
- */
-
-bool RCTInfoFactory::scanInHF(FILE *fptr, RCTInfo &rctInfo, int crateID)
-{
-  int Et, of, fg, tau, mip, qt, RCTcrt, RCTcrd, RCTrgn, RCTeta, RCTphi, GCTeta, GCTphi=0;
-  unsigned int i = 0;
-  char tmp[100];
-
-  //First Line is a Header, so ignore
-  fscanf(fptr,
-	   "%s    %s   %s    %s    %s  %s      %s      %s      %s      %s      %s      %s      %s",
-	   tmp, tmp, tmp,  tmp,  tmp, tmp,     tmp,     tmp,     tmp,     tmp,     tmp,     tmp,tmp);
-
-
-  //Next lines Contain data
-  while(1){
-    fscanf(fptr,
-    "%i  %i  %i   %i   %i  %i      %i      %i      %i      %i      %i      %i      %i",
-   &Et, &of, &fg, &tau, &mip, &qt, &RCTcrt, &RCTcrd, &RCTrgn, &RCTeta, &RCTphi, &GCTeta, &GCTphi);
-
-    if(RCTcrt!=crateID)
-      continue;
-    if(RCTrgn>7)
-      return false;
-    if(RCTphi>1)
-      return false;
-    
-    rctInfo.hfEt[RCTphi][RCTrgn/2] = Et;
-    rctInfo.hfQBits |= (qt << RCTphi);
-
-    if(i>6)
-      break;
-    i++;
-  }
-
-  return true;
-}
-
-/* 
- * Structure of EG candidates more complicated than HF or Regions 
- * rank: XX  eta_bin: XX  phi_bin: XX  crate: X  card: X  region: X  isolated: X
- */
-
-bool RCTInfoFactory::scanInEG(FILE *fptr, RCTInfo &rctInfo, int crateID)
-{
-  char tmp1[100], tmp2[100], tmp3[100], tmp4[100], tmp5[100], tmp6[100], tmp7[100];
-  int rank=0, eta_bin=0, RCTcrt=0,RCTcrd=0, RCTiso = 0;
-  float phi_bin =0, RCTrgn=0;
-  int IntRCTrgn=0;
-  unsigned int i = 0;
-
-  //First 3 words is a header
-   fscanf(fptr,
-   "%s %s %s",
-   tmp1, tmp2, tmp3);
-
-
-  while(1){
-   //rank: 11  eta_bin: -3  phi_bin: 0.  crate: 0  card: 2  region: 0.  isolated: 1
-   fscanf(fptr,
-   "%s   %i          %s %i           %s %f             %s %i         %s  %i         %s   %f        %s   %i ",
-   tmp1, &rank,   tmp2, &eta_bin, tmp3, &phi_bin, tmp4, &RCTcrt, tmp5, &RCTcrd, tmp6, &RCTrgn, tmp7, &RCTiso
-   );
-
-   //Pre-formatted output files have regions as decimals
-   IntRCTrgn=(int)RCTrgn;
-
-   if(verbose)cout<< " " <<tmp1<< " " <<rank<< " " <<tmp2<< " " <<eta_bin<< " " <<tmp3<< " " <<phi_bin<< " " <<tmp4<< " " <<RCTcrt<< " " <<tmp5<< " " <<RCTcrd<< " " <<tmp6<< " " <<RCTrgn<< " " <<tmp7<< " " <<RCTiso<<endl;
-
-   if(RCTcrt != crateID)
-     continue;
-
-   if(RCTiso == 1){
-     rctInfo.ieRank[RCTcrd] = rank;
-     rctInfo.ieCard[RCTcrd] = RCTcrd;
-     rctInfo.ieRegn[RCTcrd] = RCTrgn;
-   }
-
-   if(RCTiso == 0){
-     rctInfo.neRank[RCTcrd] = rank;
-     rctInfo.neCard[RCTcrd] = RCTcrd;
-     rctInfo.neRegn[RCTcrd] = RCTrgn;
-   }
-
-   if(i>6)
-     break;
-   i++;
-  }
-
-  return true;
-}
-
-/*
- * Read in a Text File
- * Search of the searchTerm
- * Scan and fill array until end of file or max number of ints (nInts) reached
-*/
-bool RCTInfoFactory::readFileSearch(char* textFile, int searchTerm , unsigned int nInts, unsigned int * Array)
-{
-  FILE *fptr = fopen(textFile, "r");
-  int line;
-  int ret;
-  unsigned int tmp;
-
-  if (fptr == NULL){
-    cout<<"Error: Could not open emulator input file "<<textFile<<endl; 
-    return false;
-  } 
-
-  //Scan until search term is found
-  while (1) {
-    ret = fscanf(fptr, "%i", &line);
-    if (line==searchTerm)
-      break;
-  }
-
-  //Read in the rest of the words
-  for(unsigned int i = 0; i<nInts; i++){
-    if(ret==0||ret==EOF)
-      break;
-    ret = fscanf(fptr, "%x", &tmp);
-    Array[i]=tmp;
-  }
-
-  return true;
-}
 
 bool RCTInfoFactory::timeStampChar( char  timeStamp[80] )
 {
@@ -845,16 +504,6 @@ bool RCTInfoFactory::timeStampChar( char  timeStamp[80] )
   time_t rawtime;  struct tm * timeinfo;  
   time ( &rawtime ); timeinfo = localtime ( &rawtime );
   strftime (the_time,80,"%b%d_%Hhr%Mmn%Ss",timeinfo);
-  strcpy(timeStamp, the_time);
-  return true;
-}
-
-bool RCTInfoFactory::timeStampCharDate( char  timeStamp[80] )
-{
-  char *the_time = (char *) malloc(sizeof(char)*80);
-  time_t rawtime;  struct tm * timeinfo;  
-  time ( &rawtime ); timeinfo = localtime ( &rawtime );
-  strftime (the_time,80,"%d%m",timeinfo);
   strcpy(timeStamp, the_time);
   return true;
 }
@@ -869,68 +518,12 @@ bool RCTInfoFactory::timeStampCharTime( char  timeStamp[80] )
   return true;
 }
 
-bool RCTInfoFactory::regionCompareFile(std::vector<RCTInfo> &rctInfoEmulator,
-				       std::vector<RCTInfo> &rctInfoCapture,
-				       unsigned int BCOffset, unsigned int crate = 0)
+bool RCTInfoFactory::timeStampCharDate( char  timeStamp[80] )
 {
-
-  char timestamp[80];
-  char logName[80];
-  timeStampChar(timestamp);
-
-  sprintf(logName,"RegionError-Crate-%X-",crate);
-  strncat(logName,timestamp,17);
-  strcat(logName,".txt");
-  std::cout<<"Error File Name: "<<logName<<std::endl;
-  std::ofstream logfile;
-  logfile.open(logName); 
-
-  bool pass = true;
-
-  for(int iBC=0; iBC<64; iBC++){
-
-    RCTInfo rctInfoEmulatorTemp = rctInfoEmulator[iBC];
-    RCTInfo rctInfoCTP7Temp     = rctInfoCapture[iBC+BCOffset];
-
-    for(int j=0; j<7; j++)
-      for(int k=0; k<2; k++){
-
-	unsigned int rct  = rctInfoEmulatorTemp.rgnEt[j][k];
-	unsigned int ctp7 = rctInfoCTP7Temp.rgnEt[j][k];
-
-	if( rct != ctp7 ){
-	  unsigned int bitwise = rct ^ ctp7;
-	  logfile << "BC (0-63):"<< iBC <<" Region "<< (j*2+k) <<" EMULATOR  "<< rct <<"  CAPTURE "<<ctp7<<"  BitWise Comparison " << bitwise << std::endl;
-	  pass = false;
-
-	}
-      }
-  }
-
-  logfile.close();
-
-  if(pass)
-    remove(logName);
-
-  return pass;
-}
-
-bool RCTInfoFactory::compareByWord(char * nameA, std::vector<unsigned int> &linkA, char * nameB, std::vector<unsigned int> &linkB, unsigned int BCoffset, bool log)
-{
-
-  bool comparePass = true;
-
-  for(unsigned int i = 0; i < linkA.size() && i < linkB.size()-BCoffset ; i++){
-    if(linkA[i]!=linkB[i+BCoffset])
-      comparePass = false;
-    std::cout<<"i "<< i<< linkA[i] << " " << linkB[i] <<std::endl;
-  }
-
-  /*
-  if(!comparePass||log)
-    if(!wordByWordErrorLogPlayback( nameA, linkA, nameB, linkB, BCoffset)){
-      std::cout<<"Error Creating Error Log!! How Redundant..."<<std::endl;
-    }
-  */
-  return comparePass;
+  char *the_time = (char *) malloc(sizeof(char)*80);
+  time_t rawtime;  struct tm * timeinfo;  
+  time ( &rawtime ); timeinfo = localtime ( &rawtime );
+  strftime (the_time,80,"%d%m",timeinfo);
+  strcpy(timeStamp, the_time);
+  return true;
 }
