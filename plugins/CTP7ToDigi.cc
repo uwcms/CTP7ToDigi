@@ -376,7 +376,7 @@ int CTP7ToDigi::getLinkNumber(bool even, int crate, bool mp7Mapping){
       if(crate==8)return  4;//LinkID 10: 80a 
       if(crate==9)return  2;//LinkID 0: 90a  
       if(crate==10)return 10;//LinkID 1: a0a  
-      if(crate==11)return 19;//LinkID 6: b0a  
+      if(crate==11)return 18;//LinkID 6: b0a  
       if(crate==12)return 26;//LinkID 27: c0a 
       if(crate==13)return 34;//LinkID 30: d0a 
       if(crate==14)return 30;//LinkID 32: e0a 
@@ -384,7 +384,7 @@ int CTP7ToDigi::getLinkNumber(bool even, int crate, bool mp7Mapping){
       if(crate==16)return 14;//LinkID 25: 100a
       if(crate==17)return 6;//LinkID 29: 110a
       else{
-      std::cout<<"Failed to find odd crate; since we don't check the linkIDs from CTP7 this must be a software bug! (check with Isobel)"<<std::endl;
+      std::cout<<"Failed to find even crate; since we don't check the linkIDs from CTP7 this must be a software bug! (check with Isobel)"<<std::endl;
       return 0;}
     }
     else{
@@ -399,7 +399,7 @@ int CTP7ToDigi::getLinkNumber(bool even, int crate, bool mp7Mapping){
       if(crate==8)return  5;//LinkID 8: 80b   
       if(crate==9)return  3;//LinkID 3: 90b  
       if(crate==10)return 11;//LinkID 9: a0b  
-      if(crate==11)return 18;//LinkID 11: b0b 
+      if(crate==11)return 19;//LinkID 11: b0b 
       if(crate==12)return 27;//LinkID 28: c0b 
       if(crate==13)return 35;//LinkID 31: d0b 
       if(crate==14)return 31;//LinkID 33: e0b 
