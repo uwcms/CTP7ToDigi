@@ -54,6 +54,7 @@
 
 #include "CTP7Tests/LinkMonitor/interface/LinkMonitor.h"
 #include "CTP7Tests/TimeMonitor/interface/TimeMonitor.h"
+#include "RunNumberFactory.hh"
 
 //utility
 #include "Math/LorentzVector.h"
@@ -206,6 +207,9 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   using namespace edm;
 
   RCTInfoFactory rctInfoFactory;
+  RunNumberFactory runNumberFactory;
+
+  std::auto_ptr<TimeMonitorCollection> rctTime(new TimeMonitorCollection);
 
   std::auto_ptr<L1CaloEmCollection> rctEMCands(new L1CaloEmCollection);
   std::auto_ptr<L1CaloRegionCollection> rctRegions(new L1CaloRegionCollection);
@@ -251,7 +255,25 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     for (uint32_t i = 0; i < rctLinksTmp->size() ; i++){
       rctLinkMonitor->push_back(LinkMonitor(rctLinksTmp->at(i)));
     }
+    //Fill Timing Plots
+    int32_t run = runNumberFactory.RunSummary();
+    //std::cout<<"Run: "<<run<<std::endl;
+  
+    //get date in int form "ddmm"-- if first day starts with zero, will be 3 numbers long
+    char date[80];
+    rctInfoFactory.timeStampCharDate(date);
+    uint16_t ddmm = atol(date);
+ 
+    //get time in long int form "hhmmss"-- if first hour starts with zero(s) will be 5(4) numbers long.
+    char clock[80];
+     rctInfoFactory.timeStampCharTime(clock);
+    uint32_t hms = atol(clock);
+    //Fill the time collection
+    rctTime->push_back(TimeMonitor(ddmm,hms,run));
     
+
+
+
   }
   else { // test mode
     cout <<"TESTING MODE"<<endl;
@@ -325,6 +347,7 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       allLinks[iBX][iLink].crateID            = crateID;
       allLinks[iBX][iLink].capturedLinkNumber = capturedLinkNumber;
       allLinks[iBX][iLink].even               = even;
+
       //std::cout<<std::dec<<"iLink "<<iLink<<" crateID "<<crateID<<" even "<<even<<std::endl;   
 
       for(unsigned int iWord = 0; iWord < 6 ; iWord++ ){
@@ -368,10 +391,10 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	for (unsigned int iBX=0; iBX<nBX; iBX++){
 	  RCTInfoFactory rctInfoFactory;
 	  std::vector <RCTInfo> rctInfoData;
-	  if(!rctInfoFactory.produce(even[iBX].uint, odd[iBX].uint, rctInfoData)){
-	    std::cout<<"Failed to produce data; corrupted data? Exiting."<<std::endl;
-	    return;
-	  }
+          if(!rctInfoFactory.produce(even[iBX].uint, odd[iBX].uint, rctInfoData)){
+            std::cout<<"Failed to produce data; corrupted data? Exiting."<<std::endl;
+            return;
+          }
 	  rctInfoFactory.setRCTInfoCrateID(rctInfoData, iCrate);
 	  allCrateRCTInfo[iBX].push_back(rctInfoData.at(0));
 	}
@@ -429,7 +452,7 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
 	     L1CaloRegion rgn = L1CaloRegion(rctInfo.rgnEt[j][k], o, t, m, q, rctInfo.crateID , j, k);
 	     std::cout<<"rgn pt "<< rgn.et()<<std::endl;
-	     rgn.setBx(iBX);
+             rgn.setBx(iBX);
 	     rctRegions->push_back( rgn);
 	   }
 	 }
@@ -451,8 +474,8 @@ RCTToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   iEvent.put(rctEMCands);
   iEvent.put(rctRegions);
-  //iEvent.put(rctLinkMonitor);
-  //iEvent.put(rctTime);
+  iEvent.put(rctLinkMonitor);
+  iEvent.put(rctTime);
 
   cout <<dec<< "RCTToDigi::produce() " << index << endl;
 
