@@ -25,6 +25,7 @@ public:
 
   bool getCaptureStatus(CaptureStatus *c);
   bool capture();
+  bool setCapturePoint(uint32_t capture_point);
 
   bool setPattern(BufferType bufferType,
 		  uint32_t linkNumber, 

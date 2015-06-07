@@ -349,6 +349,19 @@ bool CTP7Client::capture(){
   return true;
 }
 
+bool CTP7Client::setCapturePoint(uint32_t capture_point){
+
+  //BufferType : inputCaptureRegisters = 6, reg offset = 8 (CAPTURE_START_BCID_REG)
+  sprintf(msg, "setValue(%x,%x,%x)", 6, 8, capture_point);
+  ssize_t bytes_received = getResult();
+  msg[bytes_received] = '\0';
+  if(strcmp(msg, "SUCCESS") != 0){
+            std::cout<<"Error! MSG Received: "<<msg<<std::endl;
+            return false;
+  }
+  return true;
+}
+  
 bool CTP7Client::setConstantPattern(BufferType bufferType, 
 				    uint32_t linkNumber, 
 				    uint32_t value) {
