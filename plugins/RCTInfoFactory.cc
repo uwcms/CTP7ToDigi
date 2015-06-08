@@ -99,7 +99,7 @@ bool RCTInfoFactory::produce(const std::vector <unsigned int> evenFiberData,
       if(nPrintOuts<10)
 	std::cout<<"First word is 0x505050BC. Appears we are in the Abort Gap. Skipping."<<std::endl;
       nPrintOuts++;
-      continue;
+      return false;
     }
 
     if(!verifyBXBytes( evenFiberData[iBX * 6 ], oddFiberData[iBX * 6 ])) {
