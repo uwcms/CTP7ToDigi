@@ -95,11 +95,13 @@ bool RCTInfoFactory::produce(const std::vector <unsigned int> evenFiberData,
       std::cerr << "Hamming code failed for odd fiber for bunch crossing" << iBX << std::endl;
     }
 
+    RCTInfo rctInfo;
     if(inAbortGap( evenFiberData[iBX * 6 ], oddFiberData[iBX * 6 ])) {
       if(nPrintOuts<10)
 	std::cout<<"First word is 0x505050BC. Appears we are in the Abort Gap. Skipping."<<std::endl;
       nPrintOuts++;
-      return false;
+      rctInfoData.push_back(rctInfo);
+      continue;
     }
 
     if(!verifyBXBytes( evenFiberData[iBX * 6 ], oddFiberData[iBX * 6 ])) {
@@ -108,7 +110,7 @@ bool RCTInfoFactory::produce(const std::vector <unsigned int> evenFiberData,
       rctInfoData.clear();
       return false;
     }
-    RCTInfo rctInfo;
+    //RCTInfo rctInfo;
     // We extract into rctInfo the data from RCT crate
     // Bit field description can be found in the spreadsheet:
     // https://twiki.cern.ch/twiki/pub/CMS/ORSCOperations/oRSCFiberDataSpecificationV5.xlsx
